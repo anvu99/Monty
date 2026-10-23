@@ -1,18 +1,22 @@
 from fastapi import APIRouter
-
-# This router is the single entry point for all v1 API routes.
-# Each endpoint module registers its own sub-router here.
-#
-# Phase 1 will add:
-#   from app.api.v1.endpoints import families, children, coaching, extension
-#   api_router.include_router(families.router, tags=["families"])
-#   api_router.include_router(children.router, tags=["children"])
-#   ...
+from app.api.v1.endpoints import (
+    families,
+    goals,
+    analytics,
+    coaching,
+    extension,
+)
 
 api_router = APIRouter()
 
+# Register sub-routers
+api_router.include_router(families.router, tags=["Families & Discovery"])
+api_router.include_router(goals.router, tags=["Savings Goals"])
+api_router.include_router(analytics.router, tags=["Analytics & Impulses"])
+api_router.include_router(coaching.router, tags=["AI Coaching & Intentions"])
+api_router.include_router(extension.router, tags=["Chrome Extension"])
 
-# Placeholder — will be replaced in Phase 1 when endpoint files are created
+
 @api_router.get("/ping")
 def ping():
     """Quick sanity check that the v1 router is wired up correctly."""

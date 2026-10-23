@@ -1,0 +1,46 @@
+from pydantic import BaseModel, Field
+from typing import Any
+
+
+class ApiRiskFactor(BaseModel):
+    factor: str
+    contribution: float
+    description: str
+
+
+class ApiRiskScore(BaseModel):
+    risk_score: float
+    risk_level: str
+    factors: list[ApiRiskFactor] = Field(default_factory=list)
+    timestamp: str | None = None
+
+
+class ApiPrediction(BaseModel):
+    type: str
+    risk_level: str
+    confidence: float
+    message: str
+    action_suggestion: str
+    risk_window_start: str | None = None
+    risk_window_end: str | None = None
+    pattern_data: dict[str, Any] | None = None
+
+
+class ApiActiveAlert(BaseModel):
+    alert_id: str
+    type: str
+    risk_level: str
+    confidence: float
+    message: str
+    action_suggestion: str | None = None
+
+
+class ApiCheckRiskResponse(BaseModel):
+    current_risk_score: ApiRiskScore
+    predictions: list[ApiPrediction] = Field(default_factory=list)
+    active_alerts: list[ApiActiveAlert] = Field(default_factory=list)
+
+
+class DismissAlertResponse(BaseModel):
+    status: str
+    dismissed: bool
