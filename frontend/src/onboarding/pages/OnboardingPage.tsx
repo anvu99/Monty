@@ -53,7 +53,7 @@ export default function OnboardingPage() {
     if (isLast) {
       // Select a family from database based on kid count
       try {
-        const result = await selectFamilyByKidCount(state.kidCount);
+        const result = await selectFamilyByKidCount(state.kidCount ?? state.kids.length);
         localStorage.setItem(SELECTED_FAMILY_KEY, result.family_id);
 
         // Update onboarding state with real kid names from database

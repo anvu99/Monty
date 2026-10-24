@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Bot, Send } from 'lucide-react';
 import { sendChatMessage } from '@/api/client';
 import type { ChatMessage } from '../mockData';
+import PurchaseAssessmentForm from '../components/PurchaseAssessmentForm';
+import type { ApiIntentionSuggestion } from '@/api/client';
 
 interface Props {
   kidName?: string;
@@ -22,6 +24,9 @@ export default function KidMonty({ kidName = 'Emma', kidId = '' }: Props) {
   ]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
+  const [mode, setMode] = useState<'chat' | 'purchase'>('chat');
+  const [error, setError] = useState('');
+  const [suggestion, setSuggestion] = useState<ApiIntentionSuggestion | null>(null);
 
   const addMessage = (text: string, from: 'kid' | 'monty') => {
     const msg: ChatMessage = {
@@ -36,12 +41,13 @@ export default function KidMonty({ kidName = 'Emma', kidId = '' }: Props) {
 
   const handleSend = async (text: string) => {
     if (!text.trim() || sending) return;
+    setError(''); setSuggestion(null);
     addMessage(text, 'kid');
     setInput('');
 
     if (!kidId) {
       // Fallback if no kidId
-      setTimeout(() => addMessage("I'm having trouble connecting. Try again later!", 'monty'), 500);
+      setError('Select a child before sending a message.');
       return;
     }
 
@@ -49,8 +55,10 @@ export default function KidMonty({ kidName = 'Emma', kidId = '' }: Props) {
     try {
       const response = await sendChatMessage(kidId, text);
       addMessage(response.message, 'monty');
-    } catch {
-      addMessage("Hmm, I'm having a moment. Can you try that again?", 'monty');
+      setSuggestion(response.suggested_intention ?? null);
+    } catch (err) {
+      setInput(text);
+      setError(err instanceof Error ? err.message : 'AI unavailable. Please retry.');
     } finally {
       setSending(false);
     }
@@ -58,6 +66,11 @@ export default function KidMonty({ kidName = 'Emma', kidId = '' }: Props) {
 
   return (
     <div className="flex flex-col h-[calc(100vh-140px)]">
+      <div className="mb-4 flex gap-2">
+        <button onClick={() => setMode('chat')} aria-pressed={mode === 'chat'} className="rounded-full border px-4 py-2 text-sm">Chat</button>
+        <button onClick={() => setMode('purchase')} aria-pressed={mode === 'purchase'} className="rounded-full border px-4 py-2 text-sm">Check a purchase</button>
+      </div>
+      {mode === 'purchase' ? <PurchaseAssessmentForm key={kidId} childId={kidId} /> : <>
       {/* Header */}
       <div className="mb-4">
         <div className="flex items-center gap-2">
@@ -74,6 +87,7 @@ export default function KidMonty({ kidName = 'Emma', kidId = '' }: Props) {
       </div>
 
       {/* Quick Questions */}
+      <p className="mb-3 text-xs text-slate-500">Each question starts fresh. Include the details you want Monty to consider.</p>
       <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
         {QUICK_QUESTIONS.map((q) => (
           <button
@@ -145,9 +159,12 @@ export default function KidMonty({ kidName = 'Emma', kidId = '' }: Props) {
       </div>
 
       {/* Input */}
+      {suggestion && <p className="mb-3 text-sm text-slate-600">Suggested plan (not saved): If {suggestion.trigger_situation}, then {suggestion.planned_action}.</p>}
+      {error && <p role="alert" className="mb-3 text-sm text-coral-700">{error} Send again to retry.</p>}
       <div className="flex gap-2 pb-20">
         <input
           type="text"
+          maxLength={2000}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSend(input)}
@@ -163,6 +180,7 @@ export default function KidMonty({ kidName = 'Emma', kidId = '' }: Props) {
           <Send className="h-4 w-4" />
         </button>
       </div>
+      </>}
     </div>
   );
 }

@@ -9,8 +9,10 @@ class ApiRiskFactor(BaseModel):
 
 
 class ApiRiskScore(BaseModel):
-    risk_score: float
+    status: str = "assessed"
+    risk_score: float | None = Field(default=None, ge=0, le=100)
     risk_level: str
+    explanation: str | None = None
     factors: list[ApiRiskFactor] = Field(default_factory=list)
     timestamp: str | None = None
 

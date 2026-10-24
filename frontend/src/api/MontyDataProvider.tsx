@@ -23,6 +23,7 @@ export interface MontyChild {
 export interface MontyDataContextValue {
   loading: boolean;
   error: string | null;
+  aiError: string | null;
   familyId: string | null;
   children: MontyChild[];
   overview: ApiFamilyOverview | null;
@@ -38,6 +39,7 @@ export interface MontyDataContextValue {
 const MontyDataContext = createContext<MontyDataContextValue | null>(null);
 
 export function MontyDataProvider({ children }: { children: ReactNode }) {
+  const [aiError, setAiError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [family, setFamily] = useState<ApiFamily | null>(null);
@@ -49,6 +51,7 @@ export function MontyDataProvider({ children }: { children: ReactNode }) {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setAiError(null);
     try {
       // Check if user selected a family during onboarding
       const selectedFamilyId = localStorage.getItem('monty_selected_family_id');
@@ -78,7 +81,7 @@ export function MontyDataProvider({ children }: { children: ReactNode }) {
             kids.map((child) =>
               fetchChildInsights(child.id)
                 .then((data) => transformInsights(data.insights, child.id, child.name))
-                .catch(() => [] as Insight[]),
+                .catch((err) => { setAiError(err instanceof Error ? err.message : 'AI insights unavailable.'); return [] as Insight[]; }),
             ),
           ),
           // Fetch impulse scores for first child
@@ -116,6 +119,7 @@ export function MontyDataProvider({ children }: { children: ReactNode }) {
     () => ({
       loading,
       error,
+      aiError,
       familyId: family?.id ?? null,
       children: childList,
       overview,
@@ -124,7 +128,7 @@ export function MontyDataProvider({ children }: { children: ReactNode }) {
       riskData,
       refetch: load,
     }),
-    [loading, error, family, childList, overview, insights, impulseScores, riskData, load],
+    [loading, error, aiError, family, childList, overview, insights, impulseScores, riskData, load],
   );
 
   return (

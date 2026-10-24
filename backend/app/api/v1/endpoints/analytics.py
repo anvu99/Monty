@@ -12,6 +12,7 @@ from app.schemas.analytics import (
     InsightsResponse,
 )
 from app.services.spending_service import SpendingService
+from app.services.ai_context_service import build_context
 
 router = APIRouter()
 
@@ -29,9 +30,15 @@ def get_child_spending(
 def get_child_insights(
     child_id: str, db: Session = Depends(get_db)
 ) -> InsightsResponse:
-    """Fetch behavioral insights derived from transactions."""
-    service = SpendingService(db)
-    return service.get_child_insights(child_id)
+    """Deterministic facts; personalized interpretation is requested through chat."""
+    snapshot = build_context(db, child_id)
+    count = snapshot["spending"]["count"]
+    if not count:
+        return InsightsResponse(insights=[])
+    return InsightsResponse(insights=[
+        f"{count} purchases recorded in the last 30 days.",
+        f"{len(snapshot['goals'])} active goals included in the current overview.",
+    ])
 
 
 @router.get("/child/{child_id}/streak", response_model=ApiStreak)

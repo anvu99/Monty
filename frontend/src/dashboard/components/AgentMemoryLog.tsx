@@ -31,6 +31,7 @@ interface Props {
 }
 
 export default function AgentMemoryLog({ memories }: Props) {
+  if (memories.length === 0) return <p className="text-xs text-slate-500">Memory is disabled in this version.</p>;
   return (
     <div className="bg-white rounded-2xl shadow-card border border-slate-200 p-5">
       <div className="flex items-center gap-2 mb-4">

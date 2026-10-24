@@ -3,7 +3,6 @@ from sqlalchemy.orm import Session
 from app.repositories.family_repo import FamilyRepository
 from app.repositories.goal_repo import GoalRepository
 from app.repositories.impulse_repo import ImpulseRepository
-from app.repositories.memory_repo import MemoryRepository
 from app.schemas.family import (
     ApiChild,
     ApiFamily,
@@ -26,7 +25,6 @@ class FamilyService:
         self.family_repo = FamilyRepository(db)
         self.goal_repo = GoalRepository(db)
         self.impulse_repo = ImpulseRepository(db)
-        self.memory_repo = MemoryRepository(db)
 
     def get_families(self) -> FamiliesResponse:
         """Fetch all families for onboarding discovery."""
@@ -77,17 +75,8 @@ class FamilyService:
                     )
                 )
 
-            # 2. Fetch AI memories
-            memories = self.memory_repo.get_memories(child.id)
-            memories_data = [
-                {
-                    "id": m.id,
-                    "memory_type": m.memory_type,
-                    "content": m.content,
-                    "confidence": m.confidence,
-                }
-                for m in memories
-            ]
+            # Agent memory is disabled for the zero-shot workflow.
+            memories_data = []
 
             # 3. Fetch visual decision logs
             decisions = self.impulse_repo.get_decision_history(child.id, limit=5)

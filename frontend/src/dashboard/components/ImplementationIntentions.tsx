@@ -10,6 +10,7 @@ interface Props {
 }
 
 export default function ImplementationIntentions({ childId, variant = 'kid' }: Props) {
+  const [error, setError] = useState('');
   const [intentions, setIntentions] = useState<ApiIntention[]>([]);
   const [suggestions, setSuggestions] = useState<ApiIntentionSuggestion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -17,12 +18,13 @@ export default function ImplementationIntentions({ childId, variant = 'kid' }: P
 
   const load = useCallback(() => {
     if (!childId) return;
+    setError(''); setLoading(true);
     fetchIntentions(childId)
       .then((data) => {
         setIntentions(data.intentions ?? []);
         setSuggestions(data.suggestions ?? []);
       })
-      .catch(() => {})
+      .catch((err) => setError(err instanceof Error ? err.message : 'Plans unavailable.'))
       .finally(() => setLoading(false));
   }, [childId]);
 
@@ -32,10 +34,11 @@ export default function ImplementationIntentions({ childId, variant = 'kid' }: P
     if (!childId || adding) return;
     setAdding(true);
     try {
-      await createIntention(childId, trigger, action);
-      load();
-    } catch {
-      // silently fail
+      const created = await createIntention(childId, trigger, action);
+      setIntentions((items) => [...items, created]);
+      setSuggestions((items) => items.filter((item) => item.trigger_situation !== trigger || item.planned_action !== action));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not add plan.');
     } finally {
       setAdding(false);
     }
@@ -50,7 +53,8 @@ export default function ImplementationIntentions({ childId, variant = 'kid' }: P
     );
   }
 
-  if (intentions.length === 0 && suggestions.length === 0) return null;
+  if (error) return <p role="alert" className="text-sm text-coral-700">{error} <button onClick={load}>Retry</button></p>;
+  if (intentions.length === 0 && suggestions.length === 0) return <p className="text-xs text-slate-500">No plans suggested yet.</p>;
 
   const isKid = variant === 'kid';
   const accent = isKid ? 'lilac' : 'teal';
@@ -69,6 +73,7 @@ export default function ImplementationIntentions({ childId, variant = 'kid' }: P
         )}
       </div>
 
+      <p className="mb-3 text-xs text-slate-500">Added plans are temporary and reset when the server restarts.</p>
       {/* Existing intentions */}
       {intentions.length > 0 && (
         <div className="space-y-2 mb-4">

@@ -64,7 +64,7 @@ export default function KidHome({ kidName = 'Emma', kidId = '' }: Props) {
     } : prev);
   }, []);
 
-  const highRisk = riskData && riskData.current_risk_score.risk_score > 60;
+  const highRisk = riskData && riskData.current_risk_score.risk_score !== null && riskData.current_risk_score.risk_score >= 70;
   const montyState =
     highRisk ? 'thinking' : streak.currentDays >= 14 ? 'excited' : streak.currentDays >= 7 ? 'happy' : 'encouraging';
   const montyMessage =

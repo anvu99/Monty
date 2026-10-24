@@ -13,6 +13,7 @@ interface Props {
 }
 
 export default function DecisionHistory({ decisions }: Props) {
+  if (decisions.length === 0) return <p className="text-sm text-slate-500">No recorded decisions yet.</p>;
   return (
     <div className="bg-white rounded-2xl shadow-card border border-slate-200 p-5">
       <p className="text-[10px] uppercase tracking-[0.3em] text-slate-500 mb-4">Decision History</p>

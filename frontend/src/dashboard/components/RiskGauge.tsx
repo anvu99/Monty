@@ -16,8 +16,8 @@ function gaugeColor(score: number): string {
 }
 
 function riskLabel(level: string): string {
-  if (level === 'high') return 'High Risk';
-  if (level === 'moderate') return 'Moderate';
+  if (level.toUpperCase() === 'HIGH') return 'High Risk';
+  if (['MEDIUM', 'MODERATE'].includes(level.toUpperCase())) return 'Moderate';
   return 'Low Risk';
 }
 
@@ -51,7 +51,7 @@ export default function RiskGauge({ score, riskLevel, factors, variant = 'parent
           <Shield className="h-4 w-4 text-teal-700" />
         )}
         <h2 className="font-display text-base font-semibold text-ink">
-          {isKid ? 'Your Impulse Shield' : 'Current Risk Score'}
+          {isKid ? 'Your Last Recorded Assessment' : 'Latest Recorded Risk Score'}
         </h2>
       </div>
 
@@ -89,7 +89,7 @@ export default function RiskGauge({ score, riskLevel, factors, variant = 'parent
             <div key={f.factor} className="flex items-center gap-2">
               <div
                 className="h-2 w-2 shrink-0 rounded-full"
-                style={{ backgroundColor: gaugeColor(f.contribution) }}
+                style={{ backgroundColor: gaugeColor(f.contribution * 100) }}
               />
               <span className="flex-1 text-xs text-slate-600 truncate">{f.description}</span>
               <span className="font-mono text-[10px] text-slate-400 shrink-0">+{f.contribution}</span>

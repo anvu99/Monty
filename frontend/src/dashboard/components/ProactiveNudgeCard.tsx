@@ -16,6 +16,7 @@ interface Props {
 }
 
 export default function ProactiveNudgeCard({ childId, childName }: Props) {
+  const [error, setError] = useState('');
   const [nudge, setNudge] = useState<ApiProactiveNudge | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -30,6 +31,7 @@ export default function ProactiveNudgeCard({ childId, childName }: Props) {
   useEffect(() => {
     if (!childId) { setLoading(false); return; }
     let cancelled = false;
+    setNudge(null); setError(''); setLoading(true);
     fetchProactiveNudge(childId)
       .then((data) => {
         if (cancelled) return;
@@ -39,7 +41,7 @@ export default function ProactiveNudgeCard({ childId, childName }: Props) {
         }
         setLoading(false);
       })
-      .catch(() => { if (!cancelled) setLoading(false); });
+      .catch((err) => { if (!cancelled) { setError(err instanceof Error ? err.message : 'Check-in unavailable.'); setLoading(false); } });
     return () => { cancelled = true; };
   }, [childId]);
 
@@ -64,14 +66,15 @@ export default function ProactiveNudgeCard({ childId, childName }: Props) {
     setChatExpanded(true);
 
     try {
-      const res = await sendChatMessage(childId, text.trim(), 'proactive_nudge');
+      const res = await sendChatMessage(childId, text.trim(), JSON.stringify({ check_in: nudge?.message, child_name: childName }));
       setMessages((p) => [...p, { id: `m-${Date.now()}`, role: 'monty', text: res.message }]);
-    } catch {
-      setMessages((p) => [...p, { id: `e-${Date.now()}`, role: 'monty', text: `Oops, my brain glitched! Try again? 🐧` }]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'AI unavailable. Please retry.');
+      setInput(text);
     } finally {
       setSending(false);
     }
-  }, [sending, childId]);
+  }, [sending, childId, nudge, childName]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doSend(input); }
@@ -97,10 +100,11 @@ export default function ProactiveNudgeCard({ childId, childName }: Props) {
     );
   }
 
+  if (error) return <p role="alert" className="text-sm text-coral-700">{error} Reload to retry.</p>;
   if (!nudge || !nudge.has_nudge) return null;
 
   const hasReplied = messages.length > 1;
-  const lastMontyMsg = messages.filter(m => m.role === 'monty').at(-1)?.text ?? '';
+  const lastMontyMsg = messages.filter(m => m.role === 'monty').slice(-1)[0]?.text ?? '';
 
   /* ───────── Minimized state ───────── */
   if (minimized) {
@@ -118,7 +122,7 @@ export default function ProactiveNudgeCard({ childId, childName }: Props) {
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-[10px] uppercase tracking-[0.2em] font-semibold text-lilac-400">
-            Monty's Daily Check-in
+            Monty's Check-in
           </p>
           <p className="text-xs text-slate-400 truncate mt-0.5">
             {hasReplied ? lastMontyMsg : 'Tap to expand'}
@@ -158,7 +162,7 @@ export default function ProactiveNudgeCard({ childId, childName }: Props) {
         </motion.div>
         <div className="flex-1 min-w-0">
           <p className="text-[10px] uppercase tracking-[0.2em] font-semibold text-lilac-400">
-            Monty's Daily Check-in
+            Monty's Check-in
           </p>
         </div>
 

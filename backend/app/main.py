@@ -1,10 +1,19 @@
 from fastapi import FastAPI
+from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import api_router
 from app.core.config import settings
+from app.core.ai import provider
+
+
+@asynccontextmanager
+async def lifespan(app):
+    yield
+    await provider.close()
 
 app = FastAPI(
+    lifespan=lifespan,
     title="Monty API",
     description="Backend API for the Monty financial literacy app",
     version="1.0.0",

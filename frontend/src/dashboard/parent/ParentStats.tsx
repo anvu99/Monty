@@ -65,6 +65,7 @@ export default function ParentStats() {
   const [pipeline, setPipeline] = useState<{ nodes: { id: string; label: string; type: NodeType }[]; edges: { from: string; to: string }[] } | null>(null);
   const [latestDecision, setLatestDecision] = useState<ApiDecisionLog | null>(null);
   const [impulseScores, setImpulseScores] = useState<ApiImpulseScore[]>([]);
+  const [riskError, setRiskError] = useState('');
   const [riskData, setRiskData] = useState<ApiCheckRiskResponse | null>(null);
 
   // Detail panel selection state
@@ -108,9 +109,12 @@ export default function ParentStats() {
       .then(setImpulseScores)
       .catch(() => {});
 
+    setRiskData(null); setRiskError('');
+    let cancelled = false;
     fetchCheckRisk(selectedChild.id)
-      .then(setRiskData)
-      .catch(() => {});
+      .then((data) => { if (!cancelled) setRiskData(data); })
+      .catch((err) => { if (!cancelled) setRiskError(err instanceof Error ? err.message : 'Risk assessment unavailable.'); });
+    return () => { cancelled = true; };
   }, [selectedChild?.id]);
 
   // Derived data
@@ -126,7 +130,6 @@ export default function ParentStats() {
     const entries = Object.entries(spendingCategories);
     if (entries.length === 0) return null;
 
-    const totalSpent = entries.reduce((sum, [, data]) => sum + data.sum, 0);
 
     // Create nodes: Total Spending + all categories
     const nodes: Array<{ name: string; category?: string }> = [
@@ -283,8 +286,10 @@ export default function ParentStats() {
         </div>
       )}
 
+      {riskError && <p role="alert" className="text-sm text-coral-700">{riskError} Reload to retry.</p>}
+      {riskData?.current_risk_score.status === 'insufficient_data' && <p className="text-sm text-slate-500">{riskData.current_risk_score.explanation || 'More purchase history is needed to assess risk.'}</p>}
       {/* Risk Gauge */}
-      {riskData && riskData.current_risk_score.risk_score > 0 && (
+      {riskData && riskData.current_risk_score.risk_score !== null && (
         <RiskGauge
           score={riskData.current_risk_score.risk_score}
           riskLevel={riskData.current_risk_score.risk_level}

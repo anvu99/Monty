@@ -44,19 +44,3 @@ class SpendingService:
                 weekend_pct=weekend_pct,
             ),
         )
-
-    def get_child_insights(self, child_id: str) -> InsightsResponse:
-        """Generate behavioral insights from child's financial patterns."""
-        evening_pct, weekend_pct = self.repo.get_impulse_indicators(child_id)
-        
-        insights = [
-            f"Analyzed 30 days of transactions from cloud database.",
-            f"Weekend spending makes up {weekend_pct}% of non-deposit transactions.",
-            "Consistently saving towards active goals with steady weekly contributions.",
-        ]
-        if evening_pct > 30:
-            insights.append(f"Noticeable evening purchase frequency ({evening_pct}% after 6 PM).")
-        else:
-            insights.append("Great discipline: minimal late-night or evening spending.")
-
-        return InsightsResponse(insights=insights)

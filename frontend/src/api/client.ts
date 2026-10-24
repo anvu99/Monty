@@ -1,11 +1,22 @@
 // API client — all backend fetch functions
 
 const BASE = '/api';
+const pending = new Map<string, Promise<unknown>>();
+
+async function readResponse<T>(res: Response): Promise<T> {
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(typeof body?.detail === 'string' ? body.detail : `Request failed (${res.status}). Please retry.`);
+  }
+  return res.json();
+}
 
 async function get<T>(path: string): Promise<T> {
-  const res = await fetch(`${BASE}${path}`);
-  if (!res.ok) throw new Error(`GET ${path} failed: ${res.status}`);
-  return res.json();
+  const existing = pending.get(path);
+  if (existing) return existing as Promise<T>;
+  const request = fetch(`${BASE}${path}`).then(readResponse<T>).finally(() => pending.delete(path));
+  pending.set(path, request);
+  return request;
 }
 
 async function post<T>(path: string, body: unknown): Promise<T> {
@@ -14,8 +25,7 @@ async function post<T>(path: string, body: unknown): Promise<T> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`POST ${path} failed: ${res.status}`);
-  return res.json();
+  return readResponse<T>(res);
 }
 
 // ---- Discovery ----
@@ -237,8 +247,10 @@ export interface ApiRiskFactor {
 }
 
 export interface ApiRiskScore {
-  risk_score: number;
+  status: 'assessed' | 'insufficient_data';
+  risk_score: number | null;
   risk_level: string;
+  explanation?: string;
   factors: ApiRiskFactor[];
   timestamp?: string;
 }
@@ -271,6 +283,32 @@ export interface ApiCheckRiskResponse {
 
 export function fetchCheckRisk(childId: string) {
   return get<ApiCheckRiskResponse>(`/extension/check-risk?child_id=${childId}`);
+}
+
+export interface PurchaseInput {
+  prompt?: string;
+  child_id: string;
+  product: string;
+  merchant: string;
+  category: string;
+  amount: string;
+  currency: string;
+  timestamp: string;
+}
+
+export interface PurchaseAssessment {
+  assessment_id: string;
+  timestamp: string;
+  status: 'assessed' | 'insufficient_data';
+  risk_score: number | null;
+  risk_level: string;
+  factors: (ApiRiskFactor & { evidence_refs: string[] })[];
+  explanation: string;
+  pause_suggestion: string | null;
+}
+
+export function assessPurchase(input: PurchaseInput) {
+  return post<PurchaseAssessment>('/extension/assess-purchase', input);
 }
 
 export function dismissAlert(alertId: string) {

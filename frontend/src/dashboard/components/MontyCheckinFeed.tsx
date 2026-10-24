@@ -85,13 +85,6 @@ export default function MontyCheckinFeed({ children, maxItems = 6 }: Props) {
     }
   });
 
-  // Sort all entries by timestamp descending and cap
-  entries.sort((a, b) => {
-    // Since timestamps are formatted strings, compare original dates via id prefix ordering
-    // Entries are already added in recency order per child, just interleave
-    return 0;
-  });
-
   const display = entries.slice(0, maxItems);
 
   if (display.length === 0) {

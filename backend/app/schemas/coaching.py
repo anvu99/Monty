@@ -40,9 +40,9 @@ class DecisionLogResponse(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    child_id: str
-    message: str
-    context: str | None = None
+    child_id: str = Field(min_length=1, max_length=100)
+    message: str = Field(min_length=1, max_length=2000, pattern=r"\S")
+    context: str | None = Field(default=None, max_length=1000)
 
 
 class SuggestedIntention(BaseModel):
@@ -71,8 +71,8 @@ class ApiProactiveNudge(BaseModel):
 
 
 class CreateIntentionRequest(BaseModel):
-    trigger_situation: str
-    planned_action: str
+    trigger_situation: str = Field(min_length=1, max_length=250)
+    planned_action: str = Field(min_length=1, max_length=250)
 
 
 class ApiIntention(BaseModel):
