@@ -215,3 +215,65 @@ async def test_expanded_input_budget_accepts_context_over_old_limit(provider, mo
     assert result.message
     assert models.generate_content.call_count == 1
     models.count_tokens.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_typed_memory_extraction_output_limit_and_request_count(provider):
+    from app.schemas.decisions import ExtractionOutput
+    instance, models = provider
+    models.generate_content.return_value.text = '{"decisions":[],"core_updates":[],"semantic_updates":[]}'
+    await instance.generate("extract_decisions", {"core_memory": {"revision": 0, "entries": {}},
+        "semantic_memories": {}}, set(), {"transcript": [{"id": "m1", "role": "user", "content": "Hi"}]}, ExtractionOutput)
+    config = models.generate_content.call_args.kwargs["config"]
+    assert config.max_output_tokens == settings.AI_MEMORY_EXTRACTION_MAX_OUTPUT_TOKENS == 2400
+    assert models.generate_content.call_count == 1
+    models.count_tokens.assert_not_called()
+
+
+def test_extraction_schema_keeps_structure_but_validates_constraints_locally():
+    from pydantic import ValidationError
+    from app.core.ai import extraction_provider_schema
+    from app.schemas.decisions import ExtractionOutput
+    original = ExtractionOutput.model_json_schema()
+    compact = extraction_provider_schema(original)
+    assert compact["required"] == original["required"]
+    assert compact["additionalProperties"] is False
+    assert compact["properties"]["core_updates"]["items"] == {"$ref": "#/$defs/CoreUpdate"}
+    assert compact["$defs"]["SemanticUpdate"]["properties"]["origin"]["enum"] == ["explicit"]
+    assert "maxItems" not in compact["properties"]["core_updates"]
+    assert original["properties"]["core_updates"]["maxItems"] == 4
+    operation = {"operation": "upsert", "key": "interests", "value": "x" * 251,
+                 "evidence": [{"message_id": "m1", "quote": "I like games"}]}
+    with pytest.raises(ValidationError):
+        ExtractionOutput.model_validate({"decisions": [], "core_updates": [operation]})
+    operation["value"] = "games"
+    with pytest.raises(ValidationError):
+        ExtractionOutput.model_validate({"decisions": [], "core_updates": [operation] * 5})
+
+
+@pytest.mark.asyncio
+async def test_extraction_sends_compact_schema_and_still_rejects_invalid_output(provider):
+    from app.core.ai import extraction_provider_schema
+    from app.schemas.decisions import ExtractionOutput
+    instance, models = provider
+    models.generate_content.return_value.text = json.dumps({"decisions": [], "core_updates": [{
+        "operation": "upsert", "key": "interests", "value": "x" * 251,
+        "evidence": [{"message_id": "m1", "quote": "games"}]}]})
+    with pytest.raises(HTTPException) as error:
+        await instance.generate("extract_decisions", {}, set(), {"transcript": []}, ExtractionOutput)
+    assert error.value.status_code == 502
+    assert models.generate_content.call_args.kwargs["config"].response_json_schema == extraction_provider_schema(ExtractionOutput.model_json_schema())
+    assert models.generate_content.call_count == 1
+    models.count_tokens.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_bad_request_is_diagnosed_without_retry_or_private_payload(provider):
+    instance, models = provider
+    models.generate_content.side_effect = errors.ClientError(400, {"error": {"message": "private request data"}})
+    with pytest.raises(HTTPException) as error:
+        await call(instance)
+    assert error.value.status_code == 502
+    assert "configuration or output schema" in error.value.detail
+    assert "private" not in error.value.detail
+    assert models.generate_content.call_count == 1

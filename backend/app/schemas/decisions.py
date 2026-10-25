@@ -3,6 +3,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field, model_validator
 from app.schemas.coaching import ConversationMessage
 from app.schemas.ai import StrictOutput
+from app.schemas.memory import Evidence, CoreUpdate, SemanticUpdate
 
 
 class TranscriptMessage(ConversationMessage):
@@ -25,11 +26,6 @@ class EndConversationRequest(BaseModel):
         return self
 
 
-class Evidence(StrictOutput):
-    message_id: str = Field(min_length=1, max_length=100)
-    quote: str = Field(min_length=1, max_length=500, pattern=r"\S")
-
-
 class ExtractedDecision(StrictOutput):
     action: Literal["wait", "skip_purchase", "purchase", "save", "other"]
     outcome_status: Literal["commitment", "reported_completed"]
@@ -41,6 +37,8 @@ class ExtractedDecision(StrictOutput):
 
 class ExtractionOutput(StrictOutput):
     decisions: list[ExtractedDecision] = Field(max_length=5)
+    core_updates: list[CoreUpdate] = Field(default_factory=list, max_length=4)
+    semantic_updates: list[SemanticUpdate] = Field(default_factory=list, max_length=5)
 
 
 class ExtractionStatus(BaseModel):

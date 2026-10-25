@@ -1,4 +1,5 @@
-from sqlalchemy import Column, ForeignKey, Integer, String
+from sqlalchemy import Column, ForeignKey, Integer, String, JSON
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 
 from app.models.base import BaseModel
@@ -21,6 +22,9 @@ class Child(BaseModel):
     age = Column(Integer, nullable=False)
     avatar = Column(String(50), default="fox", nullable=False)
     nessie_customer_id = Column(String(100), nullable=True)
+    core_memory = Column(JSONB().with_variant(JSON, "sqlite"), nullable=False,
+        default=lambda: {"schema_version": 1, "revision": 0, "entries": {}},
+        server_default='{"schema_version":1,"revision":0,"entries":{}}')
 
     # Relationships
     family = relationship("Family", back_populates="children")
