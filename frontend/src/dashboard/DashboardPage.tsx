@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Users, GraduationCap, ChevronDown } from 'lucide-react';
 import BottomNav, { PARENT_TABS, KID_TABS } from './components/BottomNav';
 import { useMontyData } from '@/api/MontyDataProvider';
 import KidSelector from './components/KidSelector';
+import DemoPurchaseDialog from './components/DemoPurchaseDialog';
 
 import ParentHome from './parent/ParentHome';
 import ParentKids from './parent/ParentKids';
@@ -36,6 +37,9 @@ export default function DashboardPage({
   const [parentTab, setParentTab] = useState('home');
   const [kidTab, setKidTab] = useState('home');
   const [showKidSelector, setShowKidSelector] = useState(false);
+  const [showDemoPurchase, setShowDemoPurchase] = useState(false);
+  const closeDemoPurchase = useCallback(() => setShowDemoPurchase(false), []);
+  const demoEnabled = import.meta.env.VITE_DEMO_PURCHASES_ENABLED === 'true';
   const { children } = useMontyData();
 
   const handleSelectKid = (newKidId: string) => {
@@ -91,7 +95,9 @@ export default function DashboardPage({
               {viewMode === 'parent' ? 'Parent dashboard' : 'Kid dashboard'}
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
+            {demoEnabled && <button disabled={!children.length} onClick={() => setShowDemoPurchase(true)}
+              className="rounded-full border border-teal-300/40 bg-teal-500/10 px-3 py-1.5 text-xs font-semibold text-teal-200 disabled:opacity-50">Demo purchase</button>}
             <div className="flex gap-1 rounded-full border border-white/10 bg-white/5 p-0.5">
               <button
                 onClick={() => setViewMode('parent')}
@@ -152,6 +158,7 @@ export default function DashboardPage({
       />
 
       {/* Kid Selector Modal */}
+      {demoEnabled && <DemoPurchaseDialog open={showDemoPurchase} defaultChildId={kidId} onClose={closeDemoPurchase} />}
       {showKidSelector && (
         <KidSelector
           kids={children}

@@ -3,12 +3,50 @@
 const BASE = '/api';
 const pending = new Map<string, Promise<unknown>>();
 
+export class ApiError extends Error {
+  constructor(message: string, public status: number) { super(message); }
+}
+
 async function readResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const body = await res.json().catch(() => null);
-    throw new Error(typeof body?.detail === 'string' ? body.detail : `Request failed (${res.status}). Please retry.`);
+    throw new ApiError(typeof body?.detail === 'string' ? body.detail : `Request failed (${res.status}). Please retry.`, res.status);
   }
   return res.json();
+}
+
+export interface DemoPurchaseInput {
+  transaction_id: string;
+  child_id: string;
+  product: string;
+  merchant: string;
+  category: string;
+  amount: string;
+  currency: 'USD';
+}
+
+export interface TransactionAssessment {
+  status: 'not_connected' | 'pending' | 'processing' | 'completed' | 'failed';
+  assessment_id: string | null;
+  outcome: 'assessed' | 'insufficient_data' | null;
+  score: number | null;
+  explanation: string | null;
+  error: string | null;
+  factors: { factor: string; contribution: number; description: string; evidence_refs: string[] }[];
+}
+
+export interface DemoPurchase extends DemoPurchaseInput {
+  source: 'demo';
+  timestamp: string;
+  assessment: TransactionAssessment;
+}
+
+export function createDemoPurchase(input: DemoPurchaseInput) {
+  return post<DemoPurchase>('/demo/purchases', input);
+}
+
+export function fetchDemoPurchase(transactionId: string, signal?: AbortSignal) {
+  return fetch(`${BASE}/demo/purchases/${encodeURIComponent(transactionId)}`, { signal }).then(readResponse<DemoPurchase>);
 }
 
 async function get<T>(path: string): Promise<T> {

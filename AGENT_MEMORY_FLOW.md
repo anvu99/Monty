@@ -186,7 +186,7 @@ POST /api/child/{child_id}/conversations/{conversation_id}/extraction/retry
 
 Status responses contain `conversation_id`, `status`, `event_count`, and `error`. `event_count` still counts episodic decisions only, not core or semantic updates. The retry endpoint requeues failed jobs. Status polling and database retrieval consume no Gemini quota; extraction is a separate generation workflow from chat, normally one request with at most one transient-error retry.
 
-Latest migration: `d71b3fa80219` (after `c42f8e91d703`). It extends semantic records with pattern provenance and dates and adds child consolidation scheduling state. Apply it before enabling consolidation. Existing explicit records and legacy tables remain intact; downgrade deletes inferred rows before removing the new columns. From `backend`, with the environment activated:
+Latest migration: `e82d4bc91320` adds demo-purchase provenance and currency after `d71b3fa80219`. The preceding consolidation migration extends semantic records with pattern provenance and dates and adds child scheduling state. Apply migrations before enabling their feature flags. Existing records remain intact. From `backend`, with the environment activated:
 
 ```powershell
 python -m alembic upgrade head
@@ -209,6 +209,18 @@ Run mocked backend checks from the project root:
 ```
 
 Tests cover history preservation, child scoping, evidence validation, duplicate submissions, empty extraction, correction handling, retry context refresh, stale-job recovery, and exclusive job claims without making live Gemini calls.
+
+## Demo purchases and the scoring handoff
+
+The shared dashboard header exposes **Demo purchase** in both parent and kid views when `VITE_DEMO_PURCHASES_ENABLED=true`. Its family-scoped child selector, $10 ice-cream shortcut, and editable USD purchase form call `POST /api/demo/purchases`. Backend access independently requires `DEMO_PURCHASES_ENABLED=true` (default false); disabled routes return 404. Apply migration `e82d4bc91320` before enabling either flag. It follows `d71b3fa80219`, adding `transactions.source` (existing rows default to `legacy`) and nullable `currency`. Downgrade removes these columns while retaining all purchase rows.
+
+Creation accepts `transaction_id` (client UUID), `child_id`, `product`, `merchant`, `category`, decimal `amount`, and USD `currency`. The server records UTC time, `source=demo`, and a non-deposit transaction, storing product in `description`. It returns 201 for creation and 200 for an identical retry; conflicting reuse returns 409. The dialog preserves the request UUID after ambiguous failures. Simulated records intentionally contribute to spending history and future AI context. Known transaction currency and source are injected into recent-purchase context; legacy currency remains unknown. Spending categories and four UTC weekly spending buckets are derived from transactions. Goals, memory, outcome flags, and impulse scores are not changed by creation.
+
+`GET /api/demo/purchases/{transaction_id}` returns the saved demo purchase and `assessment`. Both routes use the read-only `PurchaseScoringAdapter.read_assessment(db, transaction_id)` seam in `backend/app/services/purchase_scoring_adapter.py`. The scoring owner supplies the monitor and transaction-linked persistence; this adapter currently returns `not_connected`. Never match a child's latest score or guess association using price/merchant/time. No Gemini request, scoring job, or artificial score is created here.
+
+The adapter returns `status` (`not_connected`, `pending`, `processing`, `completed`, `failed`), optional `assessment_id`, `outcome` (`assessed`/`insufficient_data`), `score`, evidence-backed `factors`, `explanation`, and a sanitized `error`. Completed assessed results require a score; insufficient-data results have no score/factors. Adapter exceptions cannot roll back an already committed purchase and return a safe failed-status message. The dialog confirms the purchase first, polls pending/processing status every two seconds for at most a minute, and offers manual refresh after timeout/failure or when scoring is not connected. Closing or switching children cancels polling. Background dashboard refresh retains active chat state.
+
+Frontend tests use `npm test` from `frontend` with Node 22.12+, 24, or 26+ as specified in `package.json`. They mock purchase/scoring calls and cover retries, child selection, preset/custom submissions, polling limits, terminal states, and cancellation. Backend coverage is in `backend/tests/ai/test_demo_purchase.py`; tests never consume Gemini quota. Frontend build/test tooling was updated together to compatible Vite/Vitest versions.
 
 ## Current limitations
 

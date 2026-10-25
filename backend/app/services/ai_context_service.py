@@ -95,7 +95,8 @@ def build_context(db: Session, child_id: str, purchase: PurchaseRequest | None =
             "weekly_contribution": str(g.weekly_contribution)}
     for t in recent:
         snapshot["recent_purchases"][t.id] = {"amount": str(t.amount), "merchant": t.merchant_name,
-            "category": t.merchant_category, "timestamp": t.timestamp.isoformat()}
+            "category": t.merchant_category, "timestamp": t.timestamp.isoformat(),
+            "currency": t.currency, "source": t.source}
     snapshot.update(_historical_context(db, child_id, start, now))
     snapshot.update(memory_context(db, child, retrieval_text, semantic_limit))
     events = db.query(DecisionEvent).filter(DecisionEvent.child_id == child_id,
