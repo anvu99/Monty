@@ -13,7 +13,8 @@ from app.services.decision_extraction import worker
 
 @asynccontextmanager
 async def lifespan(app):
-    task = asyncio.create_task(worker(SessionLocal, provider)) if settings.AI_EXTRACTION_WORKER_ENABLED else None
+    task = asyncio.create_task(worker(SessionLocal, provider)) if (
+        settings.AI_EXTRACTION_WORKER_ENABLED or settings.AI_SEMANTIC_CONSOLIDATION_ENABLED) else None
     try:
         yield
     finally:

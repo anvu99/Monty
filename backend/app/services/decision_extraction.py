@@ -13,6 +13,7 @@ from app.core.config import settings
 from app.models import DecisionEvent, EndedConversation
 from app.schemas.decisions import ExtractionOutput, ExtractionStatus
 from app.services.ai_context_service import build_context, evidence_refs, require_child
+from app.services.memory_service import apply_memory_updates, validate_memory_updates
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +46,8 @@ def enqueue(db, payload):
         if existing.transcript_hash != fingerprint:
             raise HTTPException(409, "Ended conversation is immutable; use a new conversation ID")
         return status(db, existing)
-    facts = build_context(db, payload.child_id)  # Ends the read transaction before writes.
+    facts = build_context(db, payload.child_id, retrieval_text="\n".join(
+        item["content"] for item in transcript if item["role"] == "user"), semantic_limit=20)
     row = EndedConversation(id=str(payload.conversation_id), child_id=payload.child_id,
         transcript=transcript, facts=facts, transcript_hash=fingerprint, status="pending")
     db.add(row)
@@ -67,7 +69,8 @@ def retry(db, row):
     # Keep the saved transcript immutable, but refresh facts for corrections that
     # may have changed while the previous attempt was waiting or failing.
     job_id, child_id = row.id, row.child_id
-    facts = build_context(db, child_id)
+    facts = build_context(db, child_id, retrieval_text="\n".join(
+        item["content"] for item in row.transcript if item["role"] == "user"), semantic_limit=20)
     db.query(EndedConversation).filter_by(id=job_id, status="failed").update(
         {"status": "pending", "error": None, "facts": facts}, synchronize_session=False)
     db.commit()
@@ -113,6 +116,7 @@ async def run_one(session_factory, provider):
             {"transcript": transcript}, ExtractionOutput)
         allowed = set(facts.get("decision_events", {}))
         validate_candidates(output, transcript, allowed)
+        validate_memory_updates(output, transcript)
         with session_factory() as db:
             # Lock the job so a reclaimed lease cannot commit duplicate results.
             job = db.query(EndedConversation).filter_by(id=job_id, status="processing").with_for_update().first()
@@ -121,6 +125,7 @@ async def run_one(session_factory, provider):
                 lease_time = lease_time.replace(tzinfo=timezone.utc) if lease_time.tzinfo is None else lease_time.astimezone(timezone.utc)
             if not job or lease_time != now:
                 return True
+            apply_memory_updates(db, job, output)
             seen = set()
             for item in output.decisions:
                 fingerprint = digest({"action": item.action, "status": item.outcome_status,
@@ -156,7 +161,11 @@ async def run_one(session_factory, provider):
 async def worker(session_factory, provider):
     while True:
         try:
-            worked = await run_one(session_factory, provider)
+            worked = await run_one(session_factory, provider) if settings.AI_EXTRACTION_WORKER_ENABLED else False
+            if settings.AI_SEMANTIC_CONSOLIDATION_ENABLED:
+                from app.services.semantic_consolidation import run_one as consolidate_one
+                consolidated = await consolidate_one(session_factory, provider)
+                worked = worked or consolidated
         except asyncio.CancelledError:
             raise
         except Exception as exc:

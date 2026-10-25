@@ -10,6 +10,7 @@ import type { ApiImpulseScore, ApiCheckRiskResponse } from '@/api/client';
 import { transformGoal, transformStreak } from '@/api/transforms';
 import { useRealtimeUpdates } from '@/hooks/useRealtimeUpdates';
 import type { Goal } from '../mockData';
+import { useMontyData } from '@/api/MontyDataProvider';
 
 interface Props {
   kidName?: string;
@@ -25,6 +26,7 @@ function getGreeting(name: string): string {
 }
 
 export default function KidHome({ kidName = 'Emma', kidId = '' }: Props) {
+  const { purchaseDataRevision } = useMontyData();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [streak, setStreak] = useState({ currentDays: 0, longestDays: 0, lastActivityDate: '', calendar: [] as boolean[] });
   const [impulseScores, setImpulseScores] = useState<ApiImpulseScore[]>([]);
@@ -54,7 +56,7 @@ export default function KidHome({ kidName = 'Emma', kidId = '' }: Props) {
       setRiskData(risk);
       setLoading(false);
     });
-  }, [kidId, kidName]);
+  }, [kidId, kidName, purchaseDataRevision]);
 
   const handleDismissAlert = useCallback((alertId: string) => {
     dismissAlert(alertId).catch(() => {});

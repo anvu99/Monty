@@ -20,12 +20,14 @@ import type { ApiImpulseScore, ApiCheckRiskResponse } from '@/api/client';
 import { transformStreak, transformGoal, computeScoreTimeline, computeDecisionDistribution } from '@/api/transforms';
 import { MOCK_BADGES } from '../mockData';
 import type { Goal } from '../mockData';
+import { useMontyData } from '@/api/MontyDataProvider';
 
 interface Props {
   kidId?: string;
 }
 
 export default function KidStats({ kidId = '' }: Props) {
+  const { purchaseDataRevision } = useMontyData();
   const [streak, setStreak] = useState({ currentDays: 0, longestDays: 0, lastActivityDate: '', calendar: [] as boolean[] });
   const [goals, setGoals] = useState<Goal[]>([]);
   const [impulseScores, setImpulseScores] = useState<ApiImpulseScore[]>([]);
@@ -48,7 +50,7 @@ export default function KidStats({ kidId = '' }: Props) {
       setRiskData(risk);
       setLoading(false);
     });
-  }, [kidId]);
+  }, [kidId, purchaseDataRevision]);
 
   // Derived data
   const scoreTimeline = useMemo(() => computeScoreTimeline(impulseScores), [impulseScores]);

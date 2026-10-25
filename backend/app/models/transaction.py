@@ -22,6 +22,8 @@ class Transaction(BaseModel):
     merchant_name = Column(String(100), nullable=False)
     merchant_category = Column(String(50), nullable=False, index=True)
     description = Column(String(255), nullable=True)
+    source = Column(String(20), nullable=False, default="legacy", server_default="legacy")
+    currency = Column(String(3), nullable=True)
     
     # Exact transaction timestamp with timezone
     timestamp = Column(DateTime(timezone=True), nullable=False, index=True)

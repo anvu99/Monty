@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Child, DecisionEvent, DecisionLog, ImpulseScore, SavingsGoal, Transaction
 from app.schemas.ai import PurchaseRequest
+from app.services.memory_service import memory_context
 
 POSITIVE_RESPONSES = ("waited", "paused", "delayed", "skipped", "agreed_to_wait")
 
@@ -63,7 +64,8 @@ def require_child(db: Session, child_id: str) -> Child:
     return child
 
 
-def build_context(db: Session, child_id: str, purchase: PurchaseRequest | None = None) -> dict:
+def build_context(db: Session, child_id: str, purchase: PurchaseRequest | None = None,
+                  retrieval_text: str = "", semantic_limit: int = 5) -> dict:
     child = require_child(db, child_id)
     now = datetime.now(timezone.utc)
     start = now - timedelta(days=30)
@@ -93,8 +95,10 @@ def build_context(db: Session, child_id: str, purchase: PurchaseRequest | None =
             "weekly_contribution": str(g.weekly_contribution)}
     for t in recent:
         snapshot["recent_purchases"][t.id] = {"amount": str(t.amount), "merchant": t.merchant_name,
-            "category": t.merchant_category, "timestamp": t.timestamp.isoformat()}
+            "category": t.merchant_category, "timestamp": t.timestamp.isoformat(),
+            "currency": t.currency, "source": t.source}
     snapshot.update(_historical_context(db, child_id, start, now))
+    snapshot.update(memory_context(db, child, retrieval_text, semantic_limit))
     events = db.query(DecisionEvent).filter(DecisionEvent.child_id == child_id,
         DecisionEvent.status == "active", DecisionEvent.occurred_at <= now).order_by(
         DecisionEvent.occurred_at.desc(), DecisionEvent.id.asc()).limit(5).all()
@@ -123,6 +127,8 @@ def evidence_refs(snapshot: dict) -> set[str]:
     refs.update(f"historical_assessments.{key}" for key in snapshot.get("historical_assessments", {}))
     refs.update(f"positive_decisions.{key}" for key in snapshot.get("positive_decisions", {}))
     refs.update(f"decision_events.{key}" for key in snapshot.get("decision_events", {}))
+    refs.update(f"core_memory.entries.{key}" for key in snapshot.get("core_memory", {}).get("entries", {}))
+    refs.update(f"semantic_memories.{key}" for key in snapshot.get("semantic_memories", {}))
     if "proposed_purchase" in snapshot:
         refs.add("proposed_purchase")
     return refs

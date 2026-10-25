@@ -27,7 +27,8 @@ def check_extension_risk(child_id: str, db: Session = Depends(get_db)):
 
 @router.post("/extension/assess-purchase", response_model=PurchaseAssessment)
 async def assess_purchase(payload: PurchaseRequest, db: Session = Depends(get_db), ai=Depends(get_ai_provider)):
-    result = await generate("risk", build_context(db, payload.child_id, payload), ai, {"message": payload.prompt})
+    retrieval_text = "\n".join((payload.prompt, payload.product, payload.merchant, payload.category))
+    result = await generate("risk", build_context(db, payload.child_id, payload, retrieval_text=retrieval_text), ai, {"message": payload.prompt})
     return PurchaseAssessment(**result.model_dump(), assessment_id=str(uuid.uuid4()),
         timestamp=datetime.now(timezone.utc).isoformat(), risk_level=risk_level(result.risk_score))
 
