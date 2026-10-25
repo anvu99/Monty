@@ -277,3 +277,38 @@ async def test_bad_request_is_diagnosed_without_retry_or_private_payload(provide
     assert "configuration or output schema" in error.value.detail
     assert "private" not in error.value.detail
     assert models.generate_content.call_count == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure,attempts,status", [(None, 1, None), (503, 2, 503), (429, 1, 429), (400, 1, 502)])
+async def test_consolidation_generation_schema_budget_and_retry_limits(provider, failure, attempts, status):
+    from app.core.ai import extraction_provider_schema
+    from app.schemas.memory import ConsolidationOutput
+    instance, models = provider
+    models.generate_content.return_value.text = '{"updates":[]}'
+    if failure:
+        models.generate_content.side_effect = errors.APIError(failure, {"error": {"message": "test"}})
+    if status:
+        with pytest.raises(HTTPException) as error:
+            await instance.generate("consolidate_semantic", {}, set(), {"conversations": []}, ConsolidationOutput)
+        assert error.value.status_code == status
+    else:
+        assert (await instance.generate("consolidate_semantic", {}, set(), {"conversations": []}, ConsolidationOutput)).updates == []
+    config = models.generate_content.call_args.kwargs["config"]
+    assert config.max_output_tokens == 2400
+    assert config.response_json_schema == extraction_provider_schema(ConsolidationOutput.model_json_schema())
+    assert models.generate_content.call_count == attempts
+    models.count_tokens.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_oversized_consolidation_rejected_locally_without_truncation(provider):
+    from app.schemas.memory import ConsolidationOutput
+    instance, models = provider
+    with pytest.raises(HTTPException) as error:
+        await instance.generate("consolidate_semantic", {}, set(), {"conversations": [
+            {"messages": [{"role": "user", "content": "x" * 40000}]}]}, ConsolidationOutput)
+    assert error.value.status_code == 422
+    assert "No messages or conversations were silently removed" in error.value.detail
+    models.generate_content.assert_not_called()
+    models.count_tokens.assert_not_called()

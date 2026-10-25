@@ -21,7 +21,14 @@ def memory_context(db, child, retrieval_text="", semantic_limit=5):
         "semantic_memories": {item.id: {"id": item.id, "memory_key": item.memory_key,
             "name": item.name, "topic": item.topic, "summary": item.summary, "details": item.details,
             "origin": item.origin, "revision": item.revision,
-            "evidence_quotes": [entry["quote"] for entry in item.evidence]} for item in records},
+            "evidence_quotes": [entry["quote"] for entry in item.evidence],
+            **({"supporting_conversation_count": len({entry["conversation_id"] for entry in
+                    (item.pattern_evidence or {}).get("supporting", [])}),
+                "first_observed_at": item.first_observed_at.isoformat() if item.first_observed_at else None,
+                "last_observed_at": item.last_observed_at.isoformat() if item.last_observed_at else None,
+                "last_evaluated_at": item.last_evaluated_at.isoformat() if item.last_evaluated_at else None,
+                "notice": "Tentative pattern from child self-reports, not a verified trait or outcome."}
+               if item.origin == "inferred" else {})} for item in records},
     }
 
 
@@ -70,6 +77,8 @@ def apply_memory_updates(db, job, output):
     visible = job.facts.get("semantic_memories", {})
     for item in output.semantic_updates:
         latest = repo.latest(job.child_id, item.memory_key)
+        if item.memory_key.startswith("pattern_") or (latest and latest.origin != "explicit"):
+            raise HTTPException(502, "Explicit extraction cannot modify inferred patterns")
         active = latest if latest and latest.status == "active" else None
         if active and item.operation == "upsert" and _content(active) == _content(item):
             continue

@@ -217,6 +217,11 @@ def test_sql_retrieval_weights_limits_ties_and_no_unrelated_fallback(memory_setu
 async def test_chat_and_purchase_context_query_semantics(memory_setup):
     client, db, _ = memory_setup
     await extract(memory_setup, MemoryProvider([core()], [semantic()]))
+    db.add(SemanticMemory(child_id="one", memory_key="pattern_gaming_alternatives",
+        name="Gaming alternatives", topic="gaming", summary="Tentative gaming pattern", origin="inferred",
+        revision=1, source_conversation_id=db.query(EndedConversation).first().id,
+        evidence=[], pattern_evidence={"supporting": [], "contradicting": []}, extractor_version="test"))
+    db.commit()
     provider = MemoryProvider()
     app.dependency_overrides[get_ai_provider] = lambda: provider
     assert client.post("/api/coaching/chat", json={"child_id": "one", "message": "What about that?",
@@ -226,7 +231,8 @@ async def test_chat_and_purchase_context_query_semantics(memory_setup):
         "timestamp": datetime.now(timezone.utc).isoformat()}).status_code == 200
     for task, facts, refs, request in provider.calls:
         assert facts["core_memory"]["entries"]
-        assert len(facts["semantic_memories"]) == 1
+        assert len(facts["semantic_memories"]) == 2
+        assert {record["origin"] for record in facts["semantic_memories"].values()} == {"explicit", "inferred"}
         assert any(ref.startswith("semantic_memories.") for ref in refs)
     assert len(provider.calls) == 2
     assert provider.calls[0][3]["history"][0]["content"] == "Gaming skins are tempting"

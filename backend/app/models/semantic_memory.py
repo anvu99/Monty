@@ -1,4 +1,4 @@
-from sqlalchemy import Column, ForeignKey, Index, Integer, JSON, String, UniqueConstraint
+from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, JSON, String, UniqueConstraint
 from app.models.base import BaseModel
 
 
@@ -16,6 +16,10 @@ class SemanticMemory(BaseModel):
     source_conversation_id = Column(String, ForeignKey("ended_conversations.id", ondelete="CASCADE"), nullable=False)
     evidence = Column(JSON, nullable=False)
     origin = Column(String(20), nullable=False, default="explicit")
+    pattern_evidence = Column(JSON, nullable=True)
+    first_observed_at = Column(DateTime(timezone=True), nullable=True)
+    last_observed_at = Column(DateTime(timezone=True), nullable=True)
+    last_evaluated_at = Column(DateTime(timezone=True), nullable=True)
     extractor_version = Column(String(100), nullable=False)
     __table_args__ = (
         UniqueConstraint("child_id", "memory_key", "revision", name="uq_semantic_memory_revision"),

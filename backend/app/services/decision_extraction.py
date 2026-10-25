@@ -161,7 +161,11 @@ async def run_one(session_factory, provider):
 async def worker(session_factory, provider):
     while True:
         try:
-            worked = await run_one(session_factory, provider)
+            worked = await run_one(session_factory, provider) if settings.AI_EXTRACTION_WORKER_ENABLED else False
+            if settings.AI_SEMANTIC_CONSOLIDATION_ENABLED:
+                from app.services.semantic_consolidation import run_one as consolidate_one
+                consolidated = await consolidate_one(session_factory, provider)
+                worked = worked or consolidated
         except asyncio.CancelledError:
             raise
         except Exception as exc:

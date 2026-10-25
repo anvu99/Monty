@@ -54,3 +54,22 @@ class SemanticUpdate(StrictOutput):
         if self.operation == "retract" and any((self.name, self.topic, self.summary, self.details)):
             raise ValueError("Retractions identify an existing key without new content")
         return self
+
+
+class PatternEvidence(Evidence):
+    conversation_id: str = Field(min_length=1, max_length=100)
+
+
+class PatternUpdate(StrictOutput):
+    operation: Literal["upsert", "retract"]
+    memory_key: str = Field(pattern=r"^pattern_[a-z0-9]+(?:_[a-z0-9]+)*$", max_length=80)
+    name: str = Field(min_length=1, max_length=100)
+    topic: str = Field(min_length=1, max_length=80)
+    summary: str = Field(min_length=1, max_length=300)
+    details: str | None = Field(default=None, max_length=600)
+    supporting: list[PatternEvidence] = Field(default_factory=list, max_length=10)
+    contradicting: list[PatternEvidence] = Field(default_factory=list, max_length=10)
+
+
+class ConsolidationOutput(StrictOutput):
+    updates: list[PatternUpdate] = Field(default_factory=list, max_length=5)

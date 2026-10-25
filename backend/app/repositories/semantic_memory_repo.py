@@ -18,7 +18,7 @@ class SemanticMemoryRepository:
     def active(self, child_id):
         return self.db.query(SemanticMemory).filter_by(child_id=child_id, status="active")
 
-    def retrieve(self, child_id: str, text: str, limit: int = 5):
+    def retrieve(self, child_id: str, text: str, limit: int = 5, origin=None):
         terms = query_terms(text)
         if not terms:
             return []
@@ -27,8 +27,14 @@ class SemanticMemoryRepository:
             for column, weight in ((SemanticMemory.name, 4), (SemanticMemory.topic, 2),
                                    (SemanticMemory.summary, 1), (SemanticMemory.details, 1)):
                 score = score + case((func.lower(func.coalesce(column, "")).contains(term, autoescape=True), weight), else_=0)
-        return self.active(child_id).filter(score > 0).order_by(
-            score.desc(), SemanticMemory.updated_at.desc(), SemanticMemory.id.asc()).limit(limit).all()
+        query = self.active(child_id).filter(score > 0)
+        ordering = (score.desc(), SemanticMemory.updated_at.desc(), SemanticMemory.id.asc())
+        if origin:
+            return query.filter_by(origin=origin).order_by(*ordering).limit(limit).all()
+        # Preserve room for explicit knowledge and cap inferred patterns at two.
+        explicit = query.filter_by(origin="explicit").order_by(*ordering).limit(limit).all()
+        inferred = query.filter_by(origin="inferred").order_by(*ordering).limit(min(2, max(0, limit - len(explicit)))).all()
+        return explicit + inferred
 
     def latest(self, child_id, key):
         return self.db.query(SemanticMemory).filter_by(child_id=child_id, memory_key=key).order_by(

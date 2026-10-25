@@ -25,6 +25,8 @@ class Child(BaseModel):
     core_memory = Column(JSONB().with_variant(JSON, "sqlite"), nullable=False,
         default=lambda: {"schema_version": 1, "revision": 0, "entries": {}},
         server_default='{"schema_version":1,"revision":0,"entries":{}}')
+    semantic_consolidation = Column(JSONB().with_variant(JSON, "sqlite"), nullable=False,
+        default=dict, server_default='{}')
 
     # Relationships
     family = relationship("Family", back_populates="children")
