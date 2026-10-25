@@ -6,7 +6,7 @@ from fastapi import HTTPException
 from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
-from app.models import Child, DecisionLog, ImpulseScore, SavingsGoal, Transaction
+from app.models import Child, DecisionEvent, DecisionLog, ImpulseScore, SavingsGoal, Transaction
 from app.schemas.ai import PurchaseRequest
 
 POSITIVE_RESPONSES = ("waited", "paused", "delayed", "skipped", "agreed_to_wait")
@@ -95,6 +95,16 @@ def build_context(db: Session, child_id: str, purchase: PurchaseRequest | None =
         snapshot["recent_purchases"][t.id] = {"amount": str(t.amount), "merchant": t.merchant_name,
             "category": t.merchant_category, "timestamp": t.timestamp.isoformat()}
     snapshot.update(_historical_context(db, child_id, start, now))
+    events = db.query(DecisionEvent).filter(DecisionEvent.child_id == child_id,
+        DecisionEvent.status == "active", DecisionEvent.occurred_at <= now).order_by(
+        DecisionEvent.occurred_at.desc(), DecisionEvent.id.asc()).limit(5).all()
+    snapshot["decision_events"] = {item.id: {
+        "id": item.id, "recorded_at": item.occurred_at.isoformat(),
+        "action": item.action, "outcome_status": item.outcome_status, "source": item.source,
+        "situation": item.situation, "goal_relationship": item.goal_relationship,
+        "evidence_quotes": [entry["quote"] for entry in item.evidence],
+        "timing_notice": "Recorded at conversation end; actual action time is not verified.",
+    } for item in events}
     if purchase:
         snapshot["proposed_purchase"] = purchase.model_dump(mode="json", exclude={"child_id"})
         # Legacy database records have no currency. Cross-currency goal impact cannot be asserted.
@@ -112,6 +122,7 @@ def evidence_refs(snapshot: dict) -> set[str]:
         refs.add("impulse_summary")
     refs.update(f"historical_assessments.{key}" for key in snapshot.get("historical_assessments", {}))
     refs.update(f"positive_decisions.{key}" for key in snapshot.get("positive_decisions", {}))
+    refs.update(f"decision_events.{key}" for key in snapshot.get("decision_events", {}))
     if "proposed_purchase" in snapshot:
         refs.add("proposed_purchase")
     return refs

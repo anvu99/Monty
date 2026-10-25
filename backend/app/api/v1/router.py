@@ -5,6 +5,7 @@ from app.api.v1.endpoints import (
     analytics,
     coaching,
     extension,
+    conversations,
 )
 
 api_router = APIRouter()
@@ -15,6 +16,7 @@ api_router.include_router(goals.router, tags=["Savings Goals"])
 api_router.include_router(analytics.router, tags=["Analytics & Impulses"])
 api_router.include_router(coaching.router, tags=["AI Coaching & Intentions"])
 api_router.include_router(extension.router, tags=["Chrome Extension"])
+api_router.include_router(conversations.router, tags=["Conversations"])
 
 
 @api_router.get("/ping")

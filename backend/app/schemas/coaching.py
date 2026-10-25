@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Any
+from typing import Any, Literal
 from app.schemas.analytics import ApiImpulseScore
 
 
@@ -39,10 +39,16 @@ class DecisionLogResponse(BaseModel):
     history: list[ApiDecisionLog] = Field(default_factory=list)
 
 
+class ConversationMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=10000, pattern=r"\S")
+
+
 class ChatRequest(BaseModel):
     child_id: str = Field(min_length=1, max_length=100)
     message: str = Field(min_length=1, max_length=2000, pattern=r"\S")
     context: str | None = Field(default=None, max_length=1000)
+    history: list[ConversationMessage] = Field(default_factory=list)
 
 
 class SuggestedIntention(BaseModel):

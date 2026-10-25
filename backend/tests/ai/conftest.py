@@ -6,4 +6,5 @@ from pathlib import Path
 os.environ["DATABASE_URL"] = "sqlite://"
 os.environ["JWT_SECRET"] = "test-only-secret"
 os.environ["GEMINI_API_KEY"] = "test-key"
+os.environ["AI_EXTRACTION_WORKER_ENABLED"] = "false"
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))

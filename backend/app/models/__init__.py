@@ -1,4 +1,5 @@
 from app.models.base import Base, BaseModel
+from app.models.conversation import EndedConversation, DecisionEvent
 from app.models.family import Family
 from app.models.user import User
 from app.models.child import Child

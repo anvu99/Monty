@@ -70,7 +70,7 @@ export default function DashboardPage({
       case 'stats':
         return <KidStats kidId={kidId} />;
       case 'monty':
-        return <KidMonty kidName={kidName} kidId={kidId} />;
+        return <KidMonty key={kidId} kidName={kidName} kidId={kidId} />;
       case 'settings':
         return <KidSettings kidName={kidName} familyName={familyName} />;
       default:

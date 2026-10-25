@@ -66,15 +66,17 @@ export default function ProactiveNudgeCard({ childId, childName }: Props) {
     setChatExpanded(true);
 
     try {
-      const res = await sendChatMessage(childId, text.trim(), JSON.stringify({ check_in: nudge?.message, child_name: childName }));
+      const res = await sendChatMessage(childId, text.trim(), JSON.stringify({ check_in: nudge?.message, child_name: childName }),
+        messages.map((message) => ({ role: message.role === 'child' ? 'user' : 'assistant', content: message.text })));
       setMessages((p) => [...p, { id: `m-${Date.now()}`, role: 'monty', text: res.message }]);
     } catch (err) {
+      setMessages((items) => items.filter((item) => item.id !== childMsg.id));
       setError(err instanceof Error ? err.message : 'AI unavailable. Please retry.');
       setInput(text);
     } finally {
       setSending(false);
     }
-  }, [sending, childId, nudge, childName]);
+  }, [sending, childId, nudge, childName, messages]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doSend(input); }

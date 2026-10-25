@@ -1,16 +1,27 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
+import asyncio
+from contextlib import suppress
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.ai import provider
+from app.core.database import SessionLocal
+from app.services.decision_extraction import worker
 
 
 @asynccontextmanager
 async def lifespan(app):
-    yield
-    await provider.close()
+    task = asyncio.create_task(worker(SessionLocal, provider)) if settings.AI_EXTRACTION_WORKER_ENABLED else None
+    try:
+        yield
+    finally:
+        if task:
+            task.cancel()
+            with suppress(asyncio.CancelledError):
+                await task
+        await provider.close()
 
 app = FastAPI(
     lifespan=lifespan,

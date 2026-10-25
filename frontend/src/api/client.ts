@@ -216,8 +216,32 @@ export interface ApiChatResponse {
   memory_updated: boolean;
 }
 
-export function sendChatMessage(childId: string, message: string, context?: string) {
-  return post<ApiChatResponse>('/coaching/chat', { child_id: childId, message, context });
+export interface ConversationMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export function sendChatMessage(childId: string, message: string, context?: string, history: ConversationMessage[] = []) {
+  return post<ApiChatResponse>('/coaching/chat', { child_id: childId, message, context, history });
+}
+
+export interface ExtractionStatus {
+  conversation_id: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  event_count: number;
+  error: string | null;
+}
+
+export function endConversation(childId: string, conversationId: string, messages: (ConversationMessage & { id: string })[]) {
+  return post<ExtractionStatus>('/coaching/conversations/end', { child_id: childId, conversation_id: conversationId, messages });
+}
+
+export function fetchExtractionStatus(childId: string, conversationId: string) {
+  return get<ExtractionStatus>(`/child/${encodeURIComponent(childId)}/conversations/${encodeURIComponent(conversationId)}/extraction`);
+}
+
+export function retryExtraction(childId: string, conversationId: string) {
+  return post<ExtractionStatus>(`/child/${encodeURIComponent(childId)}/conversations/${encodeURIComponent(conversationId)}/extraction/retry`, {});
 }
 
 // ---- Proactive Nudge ----
