@@ -54,7 +54,7 @@ const KID_COLORS = [
 type NodeType = 'input' | 'check' | 'process' | 'decision' | 'output';
 
 export default function ParentStats() {
-  const { overview, loading } = useMontyData();
+  const { overview, loading, purchaseDataRevision } = useMontyData();
   const children = overview?.children ?? [];
   const [selectedIdx, setSelectedIdx] = useState(0);
   const selectedChild = children[selectedIdx];
@@ -115,7 +115,7 @@ export default function ParentStats() {
       .then((data) => { if (!cancelled) setRiskData(data); })
       .catch((err) => { if (!cancelled) setRiskError(err instanceof Error ? err.message : 'Risk assessment unavailable.'); });
     return () => { cancelled = true; };
-  }, [selectedChild?.id]);
+  }, [selectedChild?.id, purchaseDataRevision]);
 
   // Derived data
   const radarAgg = useMemo(() => aggregateImpulseFactors(impulseScores), [impulseScores]);

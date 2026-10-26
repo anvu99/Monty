@@ -26,12 +26,8 @@ class SpendingService:
         evening_pct, weekend_pct = self.repo.get_impulse_indicators(child_id)
 
         # Build weekly trend slices
-        weekly_trend = [
-            WeeklyTrendItem(week="Week 1", total=32.50),
-            WeeklyTrendItem(week="Week 2", total=45.00),
-            WeeklyTrendItem(week="Week 3", total=22.00),
-            WeeklyTrendItem(week="Week 4", total=21.75),
-        ]
+        weekly_trend = [WeeklyTrendItem(week=f"Week {index + 1}", total=amount)
+                        for index, amount in enumerate(self.repo.weekly_spending(child_id))]
 
         return ApiSpending(
             child_id=child_id,

@@ -12,13 +12,14 @@ async def generate(task, snapshot, provider, request=None):
     has_history = snapshot.get("impulse_summary", {}).get("assessment_count", 0) > 0
     has_decisions = bool(snapshot.get("positive_decisions"))
     has_goals = bool(snapshot["goals"])
-    if task == "risk" and not has_purchases and not has_history and not has_decisions and "proposed_purchase" not in snapshot:
+    has_memory = bool(snapshot.get("core_memory", {}).get("entries") or snapshot.get("semantic_memories") or snapshot.get("decision_events"))
+    if task == "risk" and not has_purchases and not has_history and not has_decisions and not has_memory and "proposed_purchase" not in snapshot:
         return RiskOutput(status="insufficient_data", explanation="No purchases are recorded in the last 30 days. Submit a proposed purchase for an assessment.")
-    if task == "insights" and not has_purchases and not has_history and not has_decisions:
+    if task == "insights" and not has_purchases and not has_history and not has_decisions and not has_memory:
         return InsightsOutput(insights=[])
-    if task == "intentions" and not has_purchases and not has_goals and not has_history and not has_decisions:
+    if task == "intentions" and not has_purchases and not has_goals and not has_history and not has_decisions and not has_memory:
         return SuggestionsOutput(suggestions=[])
-    if task == "nudge" and not has_purchases and not has_goals and not has_history and not has_decisions:
+    if task == "nudge" and not has_purchases and not has_goals and not has_history and not has_decisions and not has_memory:
         return NudgeOutput(has_nudge=False)
     allowed = evidence_refs(snapshot)
     result = await provider.generate(task, snapshot, allowed, request or {}, SCHEMAS[task])

@@ -78,6 +78,8 @@ def test_chat_uses_child_context_and_no_memory(setup):
     assert "memories" not in ai.calls[0][1]
     assert len(ai.calls[0][1]["recent_purchases"]) == 8
     assert ai.calls[0][1]["goals"]["g"]["remaining"] == "75.00"
+    assert ai.calls[0][1]["core_memory"]["entries"] == {}
+    assert ai.calls[0][1]["semantic_memories"] == {}
 
 
 def test_chat_passes_every_historical_turn_and_current_message(setup):

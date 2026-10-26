@@ -28,6 +28,8 @@ export interface MontyDataContextValue {
   /** Preloaded risk data for first child */
   riskData: ApiCheckRiskResponse | null;
   refetch: () => void;
+  purchaseDataRevision: number;
+  refreshPurchaseData: () => void;
 }
 
 const MontyDataContext = createContext<MontyDataContextValue | null>(null);
@@ -39,18 +41,17 @@ export function MontyDataProvider({ children }: { children: ReactNode }) {
   const [overview, setOverview] = useState<ApiFamilyOverview | null>(null);
   const [impulseScores, setImpulseScores] = useState<ApiImpulseScore[]>([]);
   const [riskData, setRiskData] = useState<ApiCheckRiskResponse | null>(null);
+  const [purchaseDataRevision, setPurchaseDataRevision] = useState(0);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  const load = useCallback(async (background = false) => {
+    if (!background) { setLoading(true); setError(null); }
     try {
       // Check if user selected a family during onboarding
       const selectedFamilyId = localStorage.getItem('monty_selected_family_id');
 
       const { families } = await fetchFamilies();
       if (families.length === 0) {
-        setError('No family data found. Please seed the backend.');
-        setLoading(false);
+        if (!background) { setError('No family data found. Please seed the backend.'); setLoading(false); }
         return;
       }
 
@@ -77,11 +78,17 @@ export function MontyDataProvider({ children }: { children: ReactNode }) {
         setRiskData(risk);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load data');
+      if (!background) setError(e instanceof Error ? e.message : 'Failed to load data');
+      else console.warn('Purchase saved, but dashboard refresh failed.', e);
     } finally {
-      setLoading(false);
+      if (!background) setLoading(false);
     }
   }, []);
+
+  const refreshPurchaseData = useCallback(() => {
+    setPurchaseDataRevision((value) => value + 1);
+    void load(true);
+  }, [load]);
 
   useEffect(() => {
     load();
@@ -106,9 +113,11 @@ export function MontyDataProvider({ children }: { children: ReactNode }) {
       overview,
       impulseScores,
       riskData,
-      refetch: load,
+      refetch: () => { void load(); },
+      purchaseDataRevision,
+      refreshPurchaseData,
     }),
-    [loading, error, family, childList, overview, impulseScores, riskData, load],
+    [loading, error, family, childList, overview, impulseScores, riskData, load, purchaseDataRevision, refreshPurchaseData],
   );
 
   return (

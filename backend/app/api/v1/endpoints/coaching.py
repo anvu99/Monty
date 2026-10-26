@@ -45,7 +45,8 @@ def get_decision_log(child_id: str, db: Session = Depends(get_db)):
 
 @router.post("/coaching/chat", response_model=ApiChatResponse)
 async def chat_with_monty(payload: ChatRequest, db: Session = Depends(get_db), ai=Depends(get_ai_provider)):
-    snapshot = build_context(db, payload.child_id)
+    previous_user = next((item.content for item in reversed(payload.history) if item.role == "user"), "")
+    snapshot = build_context(db, payload.child_id, retrieval_text=payload.message + "\n" + previous_user)
     result = await generate("chat", snapshot, ai, {"message": payload.message, "user_context": payload.context,
         "history": [message.model_dump() for message in payload.history]})
     return ApiChatResponse(message=result.message,
