@@ -6,7 +6,7 @@ export default function PurchaseAssessmentForm({ childId }: { childId: string })
   const [error, setError] = useState('');
   const [result, setResult] = useState<PurchaseAssessment | null>(null);
 
-  return <div className="space-y-4 pb-24">
+  return <div className="space-y-4">
     <p className="text-sm text-slate-500">Thinking about a purchase? Get a suggestion before deciding. This will not record a purchase or move money.</p>
     <form className="space-y-3" onSubmit={async (event) => {
       event.preventDefault();

@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.models.transaction import Transaction
+from app.models.child import Child
 from app.repositories.base import BaseRepository
 
 
@@ -10,6 +11,23 @@ class TransactionRepository(BaseRepository[Transaction]):
 
     def __init__(self, db: Session):
         super().__init__(Transaction, db)
+
+    def get_purchases(self, child_id: str, limit: int, offset: int) -> list[Transaction]:
+        return (
+            self.db.query(Transaction)
+            .filter(Transaction.child_id == child_id, Transaction.is_deposit.is_(False))
+            .order_by(Transaction.timestamp.desc(), Transaction.id.asc())
+            .offset(offset).limit(limit).all()
+        )
+
+    def get_family_purchases(self, family_id: str, limit: int, offset: int):
+        return (
+            self.db.query(Transaction, Child.name)
+            .join(Child, Transaction.child_id == Child.id)
+            .filter(Child.family_id == family_id, Transaction.is_deposit.is_(False))
+            .order_by(Transaction.timestamp.desc(), Transaction.id.asc())
+            .offset(offset).limit(limit).all()
+        )
 
     def get_time_series(self, child_id: str, limit: int = 100) -> list[Transaction]:
         """Fetch transactions ordered by timestamp (optimized for LSTM / sequential processing)."""

@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session
 from app.core.ai import get_ai_provider
 from app.core.database import get_db
 from app.repositories.impulse_repo import ImpulseRepository
+from app.repositories.memory_repo import MemoryRepository
+from app.schemas.coaching import ApiMemory
 from app.schemas.coaching import (
     ApiChatResponse, ApiDecisionLog, ApiIntention, ApiLiveFeed, ApiProactiveNudge,
     ChatRequest, CreateIntentionRequest, DecisionLogResponse, IntentionsResponse, MemoriesResponse,
@@ -19,7 +21,13 @@ intentions_store: dict[str, list[ApiIntention]] = {}
 @router.get("/child/{child_id}/memories", response_model=MemoriesResponse)
 def get_child_memories(child_id: str, db: Session = Depends(get_db)):
     require_child(db, child_id)
-    return MemoriesResponse(memories=[])
+    return MemoriesResponse(memories=[ApiMemory(
+        id=m.id, child_id=m.child_id, created_at=m.created_at.isoformat(),
+        memory_type=m.memory_type, content=m.content, category=m.category,
+        merchant_name=m.merchant_name, suppress_alerts=m.suppress_alerts,
+        suppress_until=m.suppress_until.isoformat() if m.suppress_until else None,
+        confidence=m.confidence,
+    ) for m in MemoryRepository(db).get_memories(child_id)])
 
 
 @router.get("/flowchart/{child_id}/decision-log", response_model=DecisionLogResponse)

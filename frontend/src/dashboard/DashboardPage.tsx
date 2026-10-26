@@ -7,14 +7,12 @@ import KidSelector from './components/KidSelector';
 
 import ParentHome from './parent/ParentHome';
 import ParentKids from './parent/ParentKids';
-import ParentStats from './parent/ParentStats';
 import ParentInsights from './parent/ParentInsights';
 import ParentSettings from './parent/ParentSettings';
 
 import KidHome from './kid/KidHome';
 import KidGoals from './kid/KidGoals';
 import KidStats from './kid/KidStats';
-import KidMonty from './kid/KidMonty';
 import KidSettings from './kid/KidSettings';
 
 type ViewMode = 'parent' | 'kid';
@@ -50,8 +48,6 @@ export default function DashboardPage({
         return <ParentHome familyName={familyName} />;
       case 'kids':
         return <ParentKids />;
-      case 'stats':
-        return <ParentStats />;
       case 'insights':
         return <ParentInsights />;
       case 'settings':
@@ -69,8 +65,6 @@ export default function DashboardPage({
         return <KidGoals kidId={kidId} />;
       case 'stats':
         return <KidStats kidId={kidId} />;
-      case 'monty':
-        return <KidMonty key={kidId} kidName={kidName} kidId={kidId} />;
       case 'settings':
         return <KidSettings kidName={kidName} familyName={familyName} />;
       default:

@@ -26,6 +26,8 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
+        # Allow stale or shared dotenv entries without disabling field validation.
+        extra = "ignore"
 
 
 @lru_cache()

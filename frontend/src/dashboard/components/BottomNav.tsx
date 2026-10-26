@@ -6,7 +6,6 @@ import {
   Lightbulb,
   Settings,
   Target,
-  Bot,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -19,7 +18,6 @@ export interface TabDef {
 export const PARENT_TABS: TabDef[] = [
   { id: 'home', label: 'Home', icon: Home },
   { id: 'kids', label: 'Kids', icon: Users },
-  { id: 'stats', label: 'Stats', icon: BarChart3 },
   { id: 'insights', label: 'Insights', icon: Lightbulb },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
@@ -28,7 +26,6 @@ export const KID_TABS: TabDef[] = [
   { id: 'home', label: 'Home', icon: Home },
   { id: 'goals', label: 'Goals', icon: Target },
   { id: 'stats', label: 'Stats', icon: BarChart3 },
-  { id: 'monty', label: 'Monty', icon: Bot },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
 

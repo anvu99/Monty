@@ -9,6 +9,7 @@ import type { ApiIntentionSuggestion } from '@/api/client';
 interface Props {
   kidName?: string;
   kidId?: string;
+  embedded?: boolean;
 }
 
 const QUICK_QUESTIONS = [
@@ -18,7 +19,7 @@ const QUICK_QUESTIONS = [
   'Check my $',
 ];
 
-export default function KidMonty({ kidName = 'Emma', kidId = '' }: Props) {
+export default function KidMonty({ kidName = 'Emma', kidId = '', embedded = false }: Props) {
   const initialMessages: ChatMessage[] = [
     { id: 'c1', from: 'monty', text: `Hi ${kidName}! How can I help you today?`, timestamp: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) },
   ];
@@ -50,7 +51,6 @@ export default function KidMonty({ kidName = 'Emma', kidId = '' }: Props) {
   }, [messages, storageKey, conversationId, extraction]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
-  const [mode, setMode] = useState<'chat' | 'purchase'>('chat');
   const [error, setError] = useState('');
   const [suggestion, setSuggestion] = useState<ApiIntentionSuggestion | null>(null);
   useEffect(() => {
@@ -112,16 +112,21 @@ export default function KidMonty({ kidName = 'Emma', kidId = '' }: Props) {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-140px)]">
+    <div className={embedded ? 'space-y-4' : 'space-y-4 pb-24'}>
+      <details className="rounded-2xl border border-lilac-300/40 bg-white p-4 shadow-card">
+        <summary className="cursor-pointer font-display text-lg font-semibold text-ink">
+          Check a purchase
+          <span className="mt-1 block font-sans text-sm font-normal text-slate-500">Thinking of buying something? Ask Monty before you decide.</span>
+        </summary>
+        <div className="mt-4"><PurchaseAssessmentForm key={kidId} childId={kidId} /></div>
+      </details>
+      <section aria-label="Monty chat" className="flex h-[calc(100dvh-380px)] min-h-[440px] max-h-[700px] flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-card">
       <div className="mb-4 flex flex-wrap gap-2">
         <button disabled={sending || (!extraction && messages.some((m) => m.from === 'kid'))} onClick={() => {
           setMessages(initialMessages); setError(''); setSuggestion(null); setExtraction(null); setConversationId(crypto.randomUUID());
         }} className="rounded-full border px-4 py-2 text-sm disabled:opacity-50">New conversation</button>
         <button disabled={sending || !!extraction || !messages.some((m) => m.from === 'kid')} onClick={handleEnd} className="rounded-full border px-4 py-2 text-sm disabled:opacity-50">End conversation</button>
-        <button onClick={() => setMode('chat')} aria-pressed={mode === 'chat'} className="rounded-full border px-4 py-2 text-sm">Chat</button>
-        <button onClick={() => setMode('purchase')} aria-pressed={mode === 'purchase'} className="rounded-full border px-4 py-2 text-sm">Check a purchase</button>
       </div>
-      {mode === 'purchase' ? <PurchaseAssessmentForm key={kidId} childId={kidId} /> : <>
       {/* Header */}
       <div className="mb-4">
         <div className="flex items-center gap-2">
@@ -129,7 +134,7 @@ export default function KidMonty({ kidName = 'Emma', kidId = '' }: Props) {
             <Bot className="h-4 w-4 text-lilac-500" />
           </div>
           <div>
-            <h1 className="font-display text-xl font-semibold text-ink">Chat with Monty</h1>
+            <h2 className="font-display text-xl font-semibold text-ink">Chat with Monty</h2>
             <p className="text-[10px] uppercase tracking-[0.3em] text-slate-500">
               Your money companion
             </p>
@@ -222,26 +227,28 @@ export default function KidMonty({ kidName = 'Emma', kidId = '' }: Props) {
       {/* Input */}
       {suggestion && <p className="mb-3 text-sm text-slate-600">Suggested plan (not saved): If {suggestion.trigger_situation}, then {suggestion.planned_action}.</p>}
       {error && <p role="alert" className="mb-3 text-sm text-coral-700">{error} Send again to retry.</p>}
-      <div className="flex gap-2 pb-20">
+      <div className="flex gap-2">
         <input
           type="text"
+          aria-label="Message Monty"
           maxLength={2000}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSend(input)}
           placeholder={`Ask me anything, ${kidName}...`}
           disabled={sending || !!extraction}
-          className="flex-1 rounded-full border border-slate-200 bg-white px-4 py-3 text-sm text-ink placeholder:text-slate-400 focus:border-lilac-300 focus:outline-none focus:ring-2 focus:ring-lilac-500/20 disabled:opacity-50"
+          className="min-w-0 flex-1 rounded-full border border-slate-200 bg-white px-4 py-3 text-sm text-ink placeholder:text-slate-400 focus:border-lilac-300 focus:outline-none focus:ring-2 focus:ring-lilac-500/20 disabled:opacity-50"
         />
         <button
           onClick={() => handleSend(input)}
+          aria-label="Send message"
           disabled={sending || !!extraction}
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-lilac-500 text-white transition hover:-translate-y-0.5 hover:shadow-card disabled:opacity-50"
         >
           <Send className="h-4 w-4" />
         </button>
       </div>
-      </>}
+      </section>
     </div>
   );
 }

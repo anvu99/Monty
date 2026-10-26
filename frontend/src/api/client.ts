@@ -134,6 +134,38 @@ export function fetchChildSpending(childId: string) {
   return get<ApiSpending>(`/child/${childId}/spending`);
 }
 
+export interface ApiTransaction {
+  id: string;
+  child_id: string;
+  timestamp: string;
+  merchant_name: string;
+  merchant_category: string;
+  description: string | null;
+  amount: number;
+}
+
+export interface ApiTransactionsResponse {
+  transactions: ApiTransaction[];
+  has_more: boolean;
+}
+
+export function fetchChildTransactions(childId: string, offset = 0) {
+  return get<ApiTransactionsResponse>(`/child/${encodeURIComponent(childId)}/transactions?limit=50&offset=${offset}`);
+}
+
+export interface ApiFamilyPurchase extends ApiTransaction {
+  child_name: string;
+}
+
+export interface ApiFamilyPurchasesResponse {
+  purchases: ApiFamilyPurchase[];
+  has_more: boolean;
+}
+
+export function fetchFamilyPurchases(familyId: string, offset = 0) {
+  return get<ApiFamilyPurchasesResponse>(`/family/${encodeURIComponent(familyId)}/purchases?limit=50&offset=${offset}`);
+}
+
 export function fetchChildInsights(childId: string) {
   return get<{ insights: string[] }>(`/child/${childId}/insights`);
 }

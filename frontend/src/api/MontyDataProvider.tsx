@@ -3,7 +3,6 @@ import type { ReactNode } from 'react';
 import {
   fetchFamilies,
   fetchFamilyOverview,
-  fetchChildInsights,
   fetchChildImpulseScores,
   fetchCheckRisk,
   type ApiFamily,
@@ -11,8 +10,6 @@ import {
   type ApiImpulseScore,
   type ApiCheckRiskResponse,
 } from './client';
-import { transformInsights } from './transforms';
-import type { Insight } from '@/dashboard/mockData';
 
 export interface MontyChild {
   id: string;
@@ -23,12 +20,9 @@ export interface MontyChild {
 export interface MontyDataContextValue {
   loading: boolean;
   error: string | null;
-  aiError: string | null;
   familyId: string | null;
   children: MontyChild[];
   overview: ApiFamilyOverview | null;
-  /** Preloaded insights for all children (flat list) */
-  insights: Insight[];
   /** Preloaded impulse scores for first child */
   impulseScores: ApiImpulseScore[];
   /** Preloaded risk data for first child */
@@ -39,19 +33,16 @@ export interface MontyDataContextValue {
 const MontyDataContext = createContext<MontyDataContextValue | null>(null);
 
 export function MontyDataProvider({ children }: { children: ReactNode }) {
-  const [aiError, setAiError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [family, setFamily] = useState<ApiFamily | null>(null);
   const [overview, setOverview] = useState<ApiFamilyOverview | null>(null);
-  const [insights, setInsights] = useState<Insight[]>([]);
   const [impulseScores, setImpulseScores] = useState<ApiImpulseScore[]>([]);
   const [riskData, setRiskData] = useState<ApiCheckRiskResponse | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    setAiError(null);
     try {
       // Check if user selected a family during onboarding
       const selectedFamilyId = localStorage.getItem('monty_selected_family_id');
@@ -70,27 +61,18 @@ export function MontyDataProvider({ children }: { children: ReactNode }) {
       const ov = await fetchFamilyOverview(fam.id);
       setOverview(ov);
 
-      // Preload insights, impulse scores, and risk data in parallel
+      // Preserve shared impulse scores and risk data for other screens
       const kids = ov.children ?? [];
       if (kids.length > 0) {
         const firstChild = kids[0];
 
-        const [insightResults, scores, risk] = await Promise.all([
-          // Fetch insights for ALL children
-          Promise.all(
-            kids.map((child) =>
-              fetchChildInsights(child.id)
-                .then((data) => transformInsights(data.insights, child.id, child.name))
-                .catch((err) => { setAiError(err instanceof Error ? err.message : 'AI insights unavailable.'); return [] as Insight[]; }),
-            ),
-          ),
+        const [scores, risk] = await Promise.all([
           // Fetch impulse scores for first child
           fetchChildImpulseScores(firstChild.id).catch(() => [] as ApiImpulseScore[]),
           // Fetch risk data for first child
           fetchCheckRisk(firstChild.id).catch(() => null as ApiCheckRiskResponse | null),
         ]);
 
-        setInsights(insightResults.flat());
         setImpulseScores(scores);
         setRiskData(risk);
       }
@@ -119,16 +101,14 @@ export function MontyDataProvider({ children }: { children: ReactNode }) {
     () => ({
       loading,
       error,
-      aiError,
       familyId: family?.id ?? null,
       children: childList,
       overview,
-      insights,
       impulseScores,
       riskData,
       refetch: load,
     }),
-    [loading, error, aiError, family, childList, overview, insights, impulseScores, riskData, load],
+    [loading, error, family, childList, overview, impulseScores, riskData, load],
   );
 
   return (

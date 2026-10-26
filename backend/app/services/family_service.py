@@ -83,6 +83,7 @@ class FamilyService:
             decisions_data = [
                 {
                     "id": d.id,
+                    "timestamp": d.timestamp.isoformat(),
                     "trigger": d.trigger,
                     "impulse_score": d.impulse_score,
                     "decision": d.decision,

@@ -1,130 +1,56 @@
-import { useState, useMemo } from 'react';
-import { Brain, Search, Shield, TrendingUp, Tag, Hash } from 'lucide-react';
-import InsightCard from '../components/InsightCard';
-import PredictionTimeline from '../components/PredictionTimeline';
+import { useEffect, useState } from 'react';
+import { Brain } from 'lucide-react';
 import { useMontyData } from '@/api/MontyDataProvider';
-import { computeDecisionDistribution } from '@/api/transforms';
+import { fetchChildMemories, type ApiMemory } from '@/api/client';
 
-const FILTERS = [
-  { id: 'all', label: 'All Types' },
-  { id: 'positive', label: 'Positive' },
-  { id: 'risk', label: 'Risks' },
-  { id: 'opportunity', label: 'Opportunities' },
-  { id: 'pattern', label: 'Patterns' },
-];
+function KidMemories({ childId, name }: { childId: string; name: string }) {
+  const [memories, setMemories] = useState<ApiMemory[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
-export default function ParentInsights() {
-  const { insights, impulseScores, riskData, loading, aiError, refetch } = useMontyData();
-  const [filter, setFilter] = useState('all');
-
-  // Pattern summary stats
-  const patternStats = useMemo(() => {
-    if (impulseScores.length === 0) return null;
-    const dist = computeDecisionDistribution(impulseScores);
-    const waitedCount = dist.responseData.find((d) => d.name === 'Waited')?.value ?? 0;
-    const resistPct = dist.totalDecisions > 0 ? Math.round((waitedCount / dist.totalDecisions) * 100) : 0;
-    const avgScore = impulseScores.reduce((s, d) => s + d.impulse_score, 0) / impulseScores.length;
-
-    // Top trigger category
-    const catCounts: Record<string, number> = {};
-    for (const s of impulseScores) {
-      const cat = s.merchant_category || 'unknown';
-      catCounts[cat] = (catCounts[cat] ?? 0) + 1;
-    }
-    const topCat = Object.entries(catCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'N/A';
-
-    return [
-      { icon: Shield, label: 'Resistance Rate', value: `${resistPct}%`, color: 'text-teal-700 bg-teal-500/10' },
-      { icon: TrendingUp, label: 'Avg Score', value: avgScore.toFixed(2), color: 'text-coral-700 bg-coral-500/10' },
-      { icon: Tag, label: 'Top Trigger', value: topCat, color: 'text-lilac-500 bg-lilac-500/10' },
-      { icon: Hash, label: 'Decisions', value: String(dist.totalDecisions), color: 'text-slate-600 bg-slate-100' },
-    ];
-  }, [impulseScores]);
-
-  const filtered =
-    filter === 'all'
-      ? insights
-      : insights.filter((i) => i.type === filter);
-
-  if (loading) {
-    return (
-      <div className="space-y-6 pb-24">
-        <div className="h-8 w-48 animate-pulse rounded bg-slate-200" />
-        <div className="h-12 animate-pulse rounded-full bg-slate-200" />
-        <div className="h-24 animate-pulse rounded-2xl bg-slate-200" />
-        <div className="h-24 animate-pulse rounded-2xl bg-slate-200" />
-      </div>
-    );
-  }
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setError(null);
+    fetchChildMemories(childId).then(data => {
+      if (active) setMemories([...data.memories].sort((a, b) =>
+        Date.parse(b.created_at) - Date.parse(a.created_at) || a.id.localeCompare(b.id)));
+    }).catch(err => {
+      if (active) setError(err instanceof Error ? err.message : 'Unable to load insights.');
+    }).finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [childId, attempt]);
 
   return (
+    <section className="space-y-3" aria-label={`${name}'s insights`}>
+      <h2 className="font-display text-lg font-semibold text-ink">{name}</h2>
+      {loading ? <p role="status" className="text-sm text-slate-500">Loading insights...</p>
+        : error ? <p role="alert" className="text-sm text-coral-700">{error} <button className="underline" onClick={() => setAttempt(a => a + 1)}>Retry</button></p>
+        : memories.length ? memories.map(memory => (
+          <article key={memory.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-card">
+            <p className="whitespace-pre-wrap text-sm text-ink">{memory.content}</p>
+            <time dateTime={memory.created_at} className="mt-2 block text-xs text-slate-500">
+              {new Date(memory.created_at).toLocaleDateString()}
+            </time>
+          </article>
+        )) : <p className="text-sm text-slate-500">No saved insights for {name} yet.</p>}
+    </section>
+  );
+}
+
+export default function ParentInsights() {
+  const { children, loading, error, refetch } = useMontyData();
+  return (
     <div className="space-y-6 pb-24">
-      {/* Header */}
-      <div>
-        <div className="flex items-center gap-2 mb-1">
-          <Brain className="h-4 w-4 text-slate-400" />
-          <p className="text-[10px] uppercase tracking-[0.3em] text-slate-500">From recorded data</p>
-        </div>
-        <h1 className="font-display text-xl font-semibold text-ink sm:text-2xl">Spending Insights</h1>
-        <p className="mt-2 text-sm text-slate-500">For a personalized assessment, send your question to Monty in the Kid view.</p>
+      <div className="flex items-center gap-2">
+        <Brain className="h-5 w-5 text-slate-400" />
+        <h1 className="font-display text-xl font-semibold text-ink sm:text-2xl">Insights</h1>
       </div>
-
-      {aiError && <p role="alert" className="text-sm text-coral-700">{aiError} <button onClick={refetch}>Retry</button></p>}
-      {/* Pattern Summary Banner */}
-      {patternStats && (
-        <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-          {patternStats.map((stat) => (
-            <div
-              key={stat.label}
-              className={`flex min-w-[130px] shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-card`}
-            >
-              <div className={`flex h-7 w-7 items-center justify-center rounded-lg ${stat.color}`}>
-                <stat.icon className="h-3.5 w-3.5" />
-              </div>
-              <div>
-                <p className="text-[9px] uppercase tracking-[0.2em] text-slate-400">{stat.label}</p>
-                <p className="font-mono text-sm font-bold text-ink">{stat.value}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Prediction Timeline */}
-      {riskData && riskData.predictions.length > 0 && (
-        <PredictionTimeline predictions={riskData.predictions} />
-      )}
-
-      {/* Filters */}
-      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-        {FILTERS.map((f) => (
-          <button
-            key={f.id}
-            onClick={() => setFilter(f.id)}
-            className={`rounded-full px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.15em] whitespace-nowrap transition ${
-              filter === f.id
-                ? 'bg-ink text-mist shadow-lift'
-                : 'border border-ink/20 text-ink hover:border-ink/40'
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Insights List */}
-      <div className="space-y-3">
-        {filtered.length > 0 ? (
-          filtered.map((insight, i) => (
-            <InsightCard key={insight.id} insight={insight} index={i} />
-          ))
-        ) : (
-          <div className="flex flex-col items-center justify-center py-16 text-slate-400">
-            <Search className="h-8 w-8 mb-3 text-slate-300" />
-            <p className="text-sm text-slate-500">No insights of this type yet</p>
-          </div>
-        )}
-      </div>
+      {loading ? <p role="status" className="text-sm text-slate-500">Loading children...</p>
+        : error ? <p role="alert">{error} <button onClick={refetch}>Retry</button></p>
+        : children.length ? children.map(child => <KidMemories key={child.id} childId={child.id} name={child.name} />)
+        : <p className="text-sm text-slate-500">No children to show yet.</p>}
     </div>
   );
 }

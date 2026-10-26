@@ -10,6 +10,7 @@ import type { ApiImpulseScore, ApiCheckRiskResponse } from '@/api/client';
 import { transformGoal, transformStreak } from '@/api/transforms';
 import { useRealtimeUpdates } from '@/hooks/useRealtimeUpdates';
 import type { Goal } from '../mockData';
+import KidMonty from './KidMonty';
 
 interface Props {
   kidName?: string;
@@ -82,16 +83,6 @@ export default function KidHome({ kidName = 'Emma', kidId = '' }: Props) {
     day: 'numeric',
   });
 
-  if (loading) {
-    return (
-      <div className="space-y-6 pb-24">
-        <div className="h-8 w-48 animate-pulse rounded bg-slate-200" />
-        <div className="h-32 animate-pulse rounded-2xl bg-slate-200" />
-        <div className="h-24 animate-pulse rounded-2xl bg-slate-200" />
-      </div>
-    );
-  }
-
   return (
     <>
       {/* Wait Prompt Modal */}
@@ -122,6 +113,7 @@ export default function KidHome({ kidName = 'Emma', kidId = '' }: Props) {
         </div>
       </div>
 
+      {loading ? <div role="status" aria-label="Loading goals and activity" className="h-32 animate-pulse rounded-2xl bg-slate-200" /> : <>
       {/* Monty Companion */}
       <MontyCompanion
         state={montyState as 'happy' | 'excited' | 'encouraging' | 'thinking'}
@@ -157,8 +149,12 @@ export default function KidHome({ kidName = 'Emma', kidId = '' }: Props) {
         </div>
       </div>
 
+      </>}
+
+      <KidMonty key={kidId} kidName={kidName} kidId={kidId} embedded />
+
       {/* Recent Wins */}
-      {(() => {
+      {!loading && (() => {
         const recentWins = impulseScores
           .filter((s) => s.child_response === 'waited')
           .slice(0, 4)

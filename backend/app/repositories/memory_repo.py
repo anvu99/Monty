@@ -14,7 +14,7 @@ class MemoryRepository(BaseRepository[Memory]):
         return (
             self.db.query(Memory)
             .filter_by(child_id=child_id)
-            .order_by(Memory.created_at.desc())
+            .order_by(Memory.created_at.desc(), Memory.id.asc())
             .all()
         )
 

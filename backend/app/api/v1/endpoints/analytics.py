@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -13,8 +13,25 @@ from app.schemas.analytics import (
 )
 from app.services.spending_service import SpendingService
 from app.services.ai_context_service import build_context
+from app.services.ai_context_service import require_child
+from app.repositories.transaction_repo import TransactionRepository
+from app.schemas.analytics import ApiTransaction, TransactionsResponse
 
 router = APIRouter()
+
+
+@router.get("/child/{child_id}/transactions", response_model=TransactionsResponse)
+def get_child_transactions(
+    child_id: str, limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0), db: Session = Depends(get_db),
+) -> TransactionsResponse:
+    require_child(db, child_id)
+    rows = TransactionRepository(db).get_purchases(child_id, limit + 1, offset)
+    return TransactionsResponse(transactions=[ApiTransaction(
+        id=row.id, child_id=row.child_id, timestamp=row.timestamp.isoformat(),
+        merchant_name=row.merchant_name, merchant_category=row.merchant_category,
+        description=row.description, amount=float(row.amount),
+    ) for row in rows[:limit]], has_more=len(rows) > limit)
 
 
 @router.get("/child/{child_id}/spending", response_model=ApiSpending)

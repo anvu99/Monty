@@ -31,6 +31,30 @@ class InsightsResponse(BaseModel):
     insights: list[str]
 
 
+class ApiTransaction(BaseModel):
+    id: str
+    child_id: str
+    timestamp: str
+    merchant_name: str
+    merchant_category: str
+    description: str | None = None
+    amount: float
+
+
+class TransactionsResponse(BaseModel):
+    transactions: list[ApiTransaction]
+    has_more: bool
+
+
+class ApiFamilyPurchase(ApiTransaction):
+    child_name: str
+
+
+class FamilyPurchasesResponse(BaseModel):
+    purchases: list[ApiFamilyPurchase]
+    has_more: bool
+
+
 class ApiStreak(BaseModel):
     id: str | None = None
     child_id: str | None = None
