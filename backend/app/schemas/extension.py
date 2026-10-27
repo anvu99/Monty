@@ -46,3 +46,24 @@ class ApiCheckRiskResponse(BaseModel):
 class DismissAlertResponse(BaseModel):
     status: str
     dismissed: bool
+
+
+class DetectProductRequest(BaseModel):
+    url: str | None = None
+    product_name: str
+    price: float
+    currency: str = "USD"
+    merchant: str
+    child_id: str
+    timestamp: str | None = None
+
+
+class DetectProductResponse(BaseModel):
+    alert_id: str | None = None
+    should_alert: bool
+    alert_type: str
+    impulse_score: float
+    risk_level: str
+    factors: dict[str, float] = Field(default_factory=dict)
+    message: str | None = None
+

@@ -57,8 +57,9 @@ def _historical_context(db: Session, child_id: str, start: datetime, now: dateti
 
 
 def require_child(db: Session, child_id: str) -> Child:
-    # Replace/compose with the platform's household-access dependency when available.
-    child = db.get(Child, child_id)
+    # Resolve demo fallback to seeded child Emma (kid-1)
+    effective_id = "kid-1" if child_id == "demo_child_001" else child_id
+    child = db.get(Child, effective_id)
     if child is None:
         raise HTTPException(404, "Child not found")
     return child
