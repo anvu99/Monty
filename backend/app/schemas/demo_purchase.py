@@ -4,6 +4,7 @@ from typing import Literal
 from uuid import UUID
 
 from pydantic import Field, model_validator
+from app.schemas.purchase_assessment import FinalAssessment
 from app.schemas.ai import RiskFactor, StrictOutput
 
 
@@ -19,6 +20,9 @@ class DemoPurchaseRequest(StrictOutput):
 
 class TransactionAssessment(StrictOutput):
     status: Literal["not_connected", "pending", "processing", "completed", "failed"]
+    conversation_context: list[dict] = Field(default_factory=list)
+    baseline: dict | None = None
+    final_assessment: FinalAssessment | None = None
     assessment_id: str | None = None
     outcome: Literal["assessed", "insufficient_data"] | None = None
     score: float | None = Field(default=None, ge=0, le=100)

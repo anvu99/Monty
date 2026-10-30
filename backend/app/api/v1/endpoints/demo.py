@@ -8,7 +8,8 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.models import Transaction
+from app.models import Transaction, PurchaseAssessmentJob
+from app.services import purchase_assessment
 from app.schemas.demo_purchase import DemoPurchaseRequest, DemoPurchaseResponse, TransactionAssessment
 from app.services.ai_context_service import require_child
 from app.services.purchase_scoring_adapter import get_purchase_scoring_adapter
@@ -59,14 +60,19 @@ def create_purchase(payload: DemoPurchaseRequest, response: Response, db: Sessio
         description=payload.product, merchant_name=payload.merchant, merchant_category=payload.category,
         amount=payload.amount, currency=payload.currency, source="demo", is_deposit=False,
         timestamp=datetime.now(timezone.utc))
-    db.add(row)
+    snapshot = purchase_assessment.capture(db, row)
     try:
+        db.add(row)
+        db.flush()
+        purchase_assessment.enqueue(db, row, snapshot)
         db.commit()
     except IntegrityError:
         db.rollback()
         row = db.get(Transaction, str(payload.transaction_id))
-        if row is None or not matches(row, payload):
-            raise HTTPException(409, "Transaction could not be created; retry with the same transaction ID") from None
+        if row is None:
+            raise
+        if not matches(row, payload):
+            raise HTTPException(409, "Transaction ID is already used for a different purchase") from None
         response.status_code = 200
     return result(db, row, scoring)
 
@@ -77,4 +83,16 @@ def get_purchase(transaction_id: UUID, db: Session = Depends(get_db),
     row = db.get(Transaction, str(transaction_id))
     if row is None or row.source != "demo":
         raise HTTPException(404, "Demo purchase not found")
+    return result(db, row, scoring)
+
+
+@router.post("/demo/purchases/{transaction_id}/retry-assessment", response_model=DemoPurchaseResponse)
+def retry_assessment(transaction_id: UUID, db: Session = Depends(get_db), scoring=Depends(get_purchase_scoring_adapter)):
+    row = db.get(Transaction, str(transaction_id))
+    if row is None or row.source != "demo":
+        raise HTTPException(404, "Demo purchase not found")
+    job = db.query(PurchaseAssessmentJob).filter_by(transaction_id=row.id).first()
+    if job is None:
+        raise HTTPException(404, "Purchase assessment not found")
+    purchase_assessment.retry(db, job)
     return result(db, row, scoring)

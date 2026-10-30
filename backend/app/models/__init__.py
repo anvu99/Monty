@@ -23,3 +23,5 @@ __all__ = [
     "Memory",
     "DecisionLog",
 ]
+
+from app.models.purchase_assessment import PurchaseAssessmentJob, PurchaseNotification

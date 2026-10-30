@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field
+from app.schemas.demo_purchase import TransactionAssessment
 from typing import Any
 
 
@@ -47,6 +48,7 @@ class TransactionsResponse(BaseModel):
 
 
 class ApiFamilyPurchase(ApiTransaction):
+    assessment: TransactionAssessment | None = None
     child_name: str
 
 

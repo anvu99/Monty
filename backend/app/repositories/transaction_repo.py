@@ -22,10 +22,12 @@ class TransactionRepository(BaseRepository[Transaction]):
         )
 
     def get_family_purchases(self, family_id: str, limit: int, offset: int):
+        now = datetime.now(timezone.utc)
         return (
             self.db.query(Transaction, Child.name)
             .join(Child, Transaction.child_id == Child.id)
-            .filter(Child.family_id == family_id, Transaction.is_deposit.is_(False))
+            .filter(Child.family_id == family_id, Transaction.is_deposit.is_(False),
+                    Transaction.timestamp <= now)
             .order_by(Transaction.timestamp.desc(), Transaction.id.asc())
             .offset(offset).limit(limit).all()
         )

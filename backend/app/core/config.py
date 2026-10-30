@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     AI_MEMORY_EXTRACTION_MAX_OUTPUT_TOKENS: int = Field(default=2400, ge=128, le=4000)
     AI_EXTRACTION_WORKER_ENABLED: bool = True
     AI_SEMANTIC_CONSOLIDATION_ENABLED: bool = False
+    PURCHASE_ASSESSMENT_WORKER_ENABLED: bool = True
+    PURCHASE_SUMMARY_CONTEXT_TOKENS: int = Field(default=3500, ge=500, le=5000)
     DEMO_PURCHASES_ENABLED: bool = False
 
     # App

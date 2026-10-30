@@ -476,6 +476,7 @@ def score_transaction(
     category: Optional[str] = None,
     timestamp: Optional[datetime] = None,
     save_to_db: bool = True,
+    features_only: bool = False,
 ) -> Dict[str, Any]:
     """
     Real-time impulse prediction (<10ms).
@@ -502,7 +503,7 @@ def score_transaction(
     # Active savings goal
     goal = None
     if hasattr(db, "query"):
-        goal = db.query(SavingsGoal).filter_by(child_id=child_id, status="active").first()
+        goal = db.query(SavingsGoal).filter_by(child_id=child_id, status="active").filter(SavingsGoal.created_at <= timestamp).order_by(SavingsGoal.id).first()
         
     goal_target = float(goal.target_amount) if goal else 100.0
     current_savings = float(goal.current_amount) if goal else 30.0
@@ -512,7 +513,7 @@ def score_transaction(
     if hasattr(db, "query"):
         last_dep = (
             db.query(Transaction)
-            .filter(Transaction.child_id == child_id, Transaction.is_deposit.is_(True))
+            .filter(Transaction.child_id == child_id, Transaction.is_deposit.is_(True), Transaction.timestamp < timestamp)
             .order_by(Transaction.timestamp.desc())
             .first()
         )
@@ -569,7 +570,7 @@ def score_transaction(
         # History impulse scores
         prior_scores = (
             db.query(ImpulseScore)
-            .filter(ImpulseScore.child_id == child_id, ImpulseScore.timestamp < timestamp)
+            .filter(ImpulseScore.child_id == child_id, ImpulseScore.timestamp < timestamp, ImpulseScore.created_at <= timestamp)
             .all()
         )
         if prior_scores:
@@ -605,6 +606,8 @@ def score_transaction(
         "child_cat_rate": child_cat_rate,
         "logit_child_rate": logit_child_rate,
     }
+    if features_only:
+        return {"features": feature_dict, "defaults": {"goal": goal is None, "deposit": last_dep_ts is None, "history": n_prior == 0}}
     feature_row = pd.DataFrame([feature_dict])[ALL_FEATURES_MODEL_B]
     
     # 4. Predict probability

@@ -3,9 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import DemoPurchaseDialog from './DemoPurchaseDialog';
 import type { DemoPurchase } from '@/api/client';
 
-const mocks = vi.hoisted(() => ({ create: vi.fn(), fetch: vi.fn(), refresh: vi.fn() }));
+const mocks = vi.hoisted(() => ({ retry: vi.fn(), create: vi.fn(), fetch: vi.fn(), refresh: vi.fn() }));
 vi.mock('@/api/client', () => ({
-  createDemoPurchase: mocks.create, fetchDemoPurchase: mocks.fetch,
+  retryDemoAssessment: mocks.retry, createDemoPurchase: mocks.create, fetchDemoPurchase: mocks.fetch,
   ApiError: class ApiError extends Error { status = 422; },
 }));
 vi.mock('@/api/MontyDataProvider', () => ({ useMontyData: () => ({
@@ -76,7 +76,7 @@ describe('demo purchases', () => {
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Buy $10 ice cream' })); });
     await act(async () => { await vi.advanceTimersByTimeAsync(2000); });
     expect(mocks.fetch.mock.calls[0][0]).toBe(saved().transaction_id);
-    expect(screen.getByText('Impulse assessment: 65/100')).toBeTruthy();
+    expect(screen.getByText('ML baseline: 65/100')).toBeTruthy();
     expect(screen.getByText('Recorded price')).toBeTruthy();
     expect(mocks.refresh).toHaveBeenCalledTimes(2);
     await act(async () => { await vi.advanceTimersByTimeAsync(60000); });
@@ -129,4 +129,27 @@ describe('demo purchases', () => {
     expect(mocks.fetch).toHaveBeenCalledTimes(1);
     expect(screen.getByText(status === 'completed' ? 'More context needed' : 'Purchase saved; assessment failed. You can refresh its status later.')).toBeTruthy();
   });
+});
+
+
+it('keeps a random purchase unchanged when retrying a lost save response', async () => {
+  mocks.create.mockRejectedValueOnce(new Error('Lost response')).mockResolvedValueOnce(saved());
+  render(<DemoPurchaseDialog open defaultChildId="two" onClose={vi.fn()} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Random purchase' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Retry save' }));
+  await screen.findByText('Purchase saved');
+  expect(mocks.create.mock.calls[0][0]).toEqual(mocks.create.mock.calls[1][0]);
+  expect(mocks.create.mock.calls[0][0].child_id).toBe('two');
+});
+
+it('retries a failed assessment without creating another purchase', async () => {
+  mocks.create.mockResolvedValue(saved('failed'));
+  mocks.retry.mockResolvedValue(saved('pending'));
+  mocks.fetch.mockResolvedValue(saved('pending'));
+  render(<DemoPurchaseDialog open defaultChildId="one" onClose={vi.fn()} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Buy $10 ice cream' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Retry assessment' }));
+  await screen.findByText(/Waiting for the purchase assessment/);
+  expect(mocks.retry).toHaveBeenCalledWith(saved().transaction_id);
+  expect(mocks.create).toHaveBeenCalledTimes(1);
 });

@@ -116,12 +116,15 @@ def test_family_purchases_scope_order_and_pagination(dashboard):
             ("old", "a", False, now - timedelta(days=1), None),
             ("deposit", "a", True, now, None),
             ("outside", "outsider", False, now, None),
+            ("future", "a", False, now + timedelta(days=30), "Future seed purchase"),
         ]
     ])
     db.commit()
     response = client.get("/api/family/family/purchases")
     assert response.status_code == 200
-    assert response.json() == {"purchases": [
+    body = response.json()
+    assert all(p.pop("assessment")["status"] == "not_connected" for p in body["purchases"])
+    assert body == {"purchases": [
         {"id": key, "child_id": child, "child_name": child, "amount": 12.34,
          "merchant_name": "Shop", "merchant_category": "Books", "description": description,
          "timestamp": timestamp.replace(tzinfo=None).isoformat()}
@@ -139,7 +142,7 @@ def test_family_purchases_scope_order_and_pagination(dashboard):
     assert client.get("/api/family/family/purchases?offset=100").json() == {"purchases": [], "has_more": False}
 
     db.add(Transaction(id="new", child_id="b", is_deposit=False, amount=Decimal("5"),
-                       merchant_name="New shop", merchant_category="Food", timestamp=now + timedelta(seconds=1)))
+                       merchant_name="New shop", merchant_category="Food", timestamp=datetime.now(timezone.utc)))
     db.commit()
     refreshed = client.get("/api/family/family/purchases").json()["purchases"]
     assert [p["id"] for p in refreshed] == ["new", "a", "b", "old"]

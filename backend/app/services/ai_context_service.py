@@ -66,11 +66,11 @@ def require_child(db: Session, child_id: str) -> Child:
 
 
 def build_context(db: Session, child_id: str, purchase: PurchaseRequest | None = None,
-                  retrieval_text: str = "", semantic_limit: int = 5) -> dict:
+                  retrieval_text: str = "", semantic_limit: int = 5, as_of: datetime | None = None, release: bool = True) -> dict:
     child = require_child(db, child_id)
-    now = datetime.now(timezone.utc)
+    now = as_of or datetime.now(timezone.utc)
     start = now - timedelta(days=30)
-    goals = db.query(SavingsGoal).filter_by(child_id=child_id, status="active").order_by(SavingsGoal.id).limit(5).all()
+    goals = db.query(SavingsGoal).filter_by(child_id=child_id, status="active").filter(SavingsGoal.created_at <= now).order_by(SavingsGoal.id).limit(5).all()
     query = db.query(Transaction).filter(
         Transaction.child_id == child_id, Transaction.is_deposit.is_(False),
         Transaction.timestamp >= start, Transaction.timestamp <= now,
@@ -99,9 +99,9 @@ def build_context(db: Session, child_id: str, purchase: PurchaseRequest | None =
             "category": t.merchant_category, "timestamp": t.timestamp.isoformat(),
             "currency": t.currency, "source": t.source}
     snapshot.update(_historical_context(db, child_id, start, now))
-    snapshot.update(memory_context(db, child, retrieval_text, semantic_limit))
+    snapshot.update(memory_context(db, child, retrieval_text, semantic_limit, as_of=as_of))
     events = db.query(DecisionEvent).filter(DecisionEvent.child_id == child_id,
-        DecisionEvent.status == "active", DecisionEvent.occurred_at <= now).order_by(
+        DecisionEvent.status == "active", DecisionEvent.occurred_at <= now, DecisionEvent.created_at <= now).order_by(
         DecisionEvent.occurred_at.desc(), DecisionEvent.id.asc()).limit(5).all()
     snapshot["decision_events"] = {item.id: {
         "id": item.id, "recorded_at": item.occurred_at.isoformat(),
@@ -115,7 +115,8 @@ def build_context(db: Session, child_id: str, purchase: PurchaseRequest | None =
         # Legacy database records have no currency. Cross-currency goal impact cannot be asserted.
         snapshot["currency_notice"] = "Goal/history currency unknown; do not compare monetary amounts across currencies."
     # Release the read transaction before waiting for an external provider.
-    db.rollback()
+    if release:
+        db.rollback()
     return snapshot
 
 

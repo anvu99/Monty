@@ -9,14 +9,15 @@ import uuid
 
 from fastapi.testclient import TestClient
 import pytest
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import create_engine, event, inspect, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 
 from app.core.ai import get_ai_provider
 from app.core.config import settings
 from app.core.database import get_db
 from app.main import app
-from app.models import Base, Child, Family, Transaction, SavingsGoal, ImpulseScore, DecisionEvent, DecisionLog
+from app.models import Base, Child, Family, Transaction, SavingsGoal, ImpulseScore, DecisionEvent, DecisionLog, PurchaseAssessmentJob
 from app.schemas.demo_purchase import TransactionAssessment
 from app.services.ai_context_service import build_context
 from app.services.purchase_scoring_adapter import get_purchase_scoring_adapter
@@ -26,12 +27,17 @@ from app.services.purchase_scoring_adapter import get_purchase_scoring_adapter
 def demo_setup(tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "DEMO_PURCHASES_ENABLED", True)
     engine = create_engine(f"sqlite:///{tmp_path / 'demo.db'}", connect_args={"check_same_thread": False, "timeout": 10})
+    @event.listens_for(engine, "connect")
+    def enable_foreign_keys(connection, record):
+        connection.execute("PRAGMA foreign_keys=ON")
     Base.metadata.create_all(engine)
     factory = sessionmaker(bind=engine)
     with factory() as db:
         db.add(Family(id="family", name="Family"))
+        db.flush()
         db.add_all([Child(id="one", family_id="family", name="One", age=10),
                     Child(id="two", family_id="family", name="Two", age=9)])
+        db.flush()
         db.add(SavingsGoal(id="goal", child_id="one", name="Lego", current_amount=35, target_amount=80))
         db.commit()
     def sessions():
@@ -64,6 +70,7 @@ def test_creation_updates_spending_only_and_injects_known_currency(demo_setup):
     assert datetime.fromisoformat(result['timestamp']).tzinfo is not None
     with factory() as db:
         row = db.query(Transaction).one()
+        assert db.query(PurchaseAssessmentJob).one().transaction_id == row.id
         assert row.child_id == 'one' and row.source == 'demo' and row.currency == 'USD'
         assert not row.is_deposit and not row.is_impulsive and row.nessie_purchase_id is None
         assert db.get(SavingsGoal, 'goal').current_amount == Decimal('35')
@@ -90,6 +97,7 @@ def test_retry_and_conflicting_ids_do_not_duplicate_or_change_child(demo_setup):
         assert client.post('/api/demo/purchases', json=body | changes).status_code == 409
     with factory() as db:
         assert db.query(Transaction).count() == 1
+        assert db.query(PurchaseAssessmentJob).count() == 1
         assert db.query(Transaction).one().child_id == 'one'
 
 
@@ -100,6 +108,26 @@ def test_simultaneous_duplicate_submissions(demo_setup):
         responses = list(executor.map(lambda _: client.post('/api/demo/purchases', json=body), range(2)))
     assert sorted(r.status_code for r in responses) == [200, 201]
     with factory() as db: assert db.query(Transaction).count() == 1
+
+
+def test_assessment_insert_failure_rolls_back_purchase(demo_setup, monkeypatch):
+    from app.services import purchase_assessment
+    client, factory, _, _ = demo_setup
+    original = purchase_assessment.enqueue
+
+    def invalid_assessment(db, row, snapshot):
+        # Force a real dependent-row constraint failure after the purchase flush.
+        original(db, row, snapshot)
+        job = next(item for item in db.new if isinstance(item, PurchaseAssessmentJob))
+        job.transaction_id = "missing-transaction"
+
+    monkeypatch.setattr(purchase_assessment, "enqueue", invalid_assessment)
+    body = purchase()
+    with pytest.raises(IntegrityError):
+        client.post('/api/demo/purchases', json=body)
+    with factory() as db:
+        assert db.get(Transaction, body['transaction_id']) is None
+        assert db.query(PurchaseAssessmentJob).count() == 0
 
 
 @pytest.mark.parametrize('changes', [

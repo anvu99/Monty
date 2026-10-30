@@ -1,6 +1,7 @@
 import { Target, Activity, DollarSign } from 'lucide-react';
 import SavingsGoalCard from '../components/SavingsGoalCard';
 import ActivityFeed from '../components/ActivityFeed';
+import PurchaseNotifications from '../components/PurchaseNotifications';
 import FamilyPurchaseUpdates from '../components/FamilyPurchaseUpdates';
 import { useMontyData } from '@/api/MontyDataProvider';
 import { transformOverviewGoal, decisionsToActivity } from '@/api/transforms';
@@ -26,6 +27,7 @@ export default function ParentHome({ familyName = 'The Thompsons' }: Props) {
         <p className="text-[10px] uppercase tracking-[0.3em] text-slate-500">Family Dashboard</p>
         <h1 className="font-display text-xl font-semibold text-ink sm:text-2xl">{familyName}</h1>
       </div>
+      {familyId && <PurchaseNotifications key={`notifications-${familyId}`} familyId={familyId} />}
       {familyId && <FamilyPurchaseUpdates key={familyId} familyId={familyId} />}
       <section>
         <div className="mb-4 flex items-center gap-2">

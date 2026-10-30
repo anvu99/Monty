@@ -1,11 +1,14 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { ChevronDown, ChevronUp, ShoppingBag } from 'lucide-react';
+import { useMontyData } from '@/api/MontyDataProvider';
 import { fetchFamilyPurchases, type ApiFamilyPurchase } from '@/api/client';
 
 const PAGE_SIZE = 50;
-const REFRESH_INTERVAL = 3 * 60_000;
+const REFRESH_INTERVAL = 5_000;
 
 export default function FamilyPurchaseUpdates({ familyId }: { familyId: string }) {
+  const { purchaseDataRevision } = useMontyData();
+  useEffect(() => { request.current?.(); }, [purchaseDataRevision]);
   const [purchases, setPurchases] = useState<ApiFamilyPurchase[]>([]);
   const [hasMore, setHasMore] = useState(false);
   const [busy, setBusy] = useState(true);
@@ -131,6 +134,11 @@ export default function FamilyPurchaseUpdates({ familyId }: { familyId: string }
                 </div>
                 <span className="shrink-0 font-mono text-sm text-ink">{purchase.amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</span>
               </div>
+              {purchase.assessment && <div className="mt-2 text-xs text-slate-600">
+                {purchase.assessment.baseline && <p>ML baseline: {purchase.assessment.baseline.score}/100</p>}
+                {purchase.assessment.final_assessment ? <><p>Monty: {purchase.assessment.final_assessment.decision.replace(/_/g, ' ')}</p><p>{purchase.assessment.final_assessment.explanation}</p></>
+                  : <p>{purchase.assessment.status === 'not_connected' ? 'Not assessed' : `Assessment ${purchase.assessment.status}`}</p>}
+              </div>}
               {purchase.description && <p className="mt-1 break-words text-xs text-slate-500">{purchase.description}</p>}
             </article>
           ))}

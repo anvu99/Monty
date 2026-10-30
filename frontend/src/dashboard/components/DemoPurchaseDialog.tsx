@@ -1,9 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { X, ShoppingBag } from 'lucide-react';
-import { ApiError, createDemoPurchase, fetchDemoPurchase, type DemoPurchase, type DemoPurchaseInput } from '@/api/client';
+import { ApiError, createDemoPurchase, retryDemoAssessment, fetchDemoPurchase, type DemoPurchase, type DemoPurchaseInput } from '@/api/client';
 import { useMontyData } from '@/api/MontyDataProvider';
 
 interface Props { open: boolean; defaultChildId: string; onClose: () => void }
+const RANDOM_PURCHASES = [
+  { product: 'Game skin', merchant: 'Demo Game Shop', category: 'Gaming & In-App', amount: '14.99' },
+  { product: 'School notebook', merchant: 'Demo Bookshop', category: 'Books & Learning', amount: '4.50' },
+  { product: 'Basketball', merchant: 'Demo Sports Shop', category: 'Sports & Outdoors', amount: '25.00' },
+  { product: 'Chocolate bar', merchant: 'Demo Snack Shop', category: 'Snacks & Treats', amount: '2.50' },
+  { product: 'Puzzle', merchant: 'Demo Toy Shop', category: 'Toys & Hobbies', amount: '18.00' },
+  { product: 'Hoodie', merchant: 'Demo Clothes Shop', category: 'Apparel', amount: '45.00' },
+];
 const waiting = (purchase: DemoPurchase) => ['pending', 'processing'].includes(purchase.assessment.status);
 
 export default function DemoPurchaseDialog({ open, defaultChildId, onClose }: Props) {
@@ -121,6 +129,8 @@ export default function DemoPurchaseDialog({ open, defaultChildId, onClose }: Pr
         className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-teal-600 p-3 font-semibold text-white disabled:opacity-50">
         <ShoppingBag size={18} />{busy ? 'Saving purchase…' : 'Buy $10 ice cream'}
       </button>
+      <button type="button" disabled={busy || !!intent || !effectiveChild} onClick={() => void save(RANDOM_PURCHASES[Math.floor(Math.random() * RANDOM_PURCHASES.length)])}
+        className="mt-3 w-full rounded-xl border border-teal-600 p-3 font-semibold text-teal-700 disabled:opacity-50">Random purchase</button>
       <form className="mt-5 space-y-3 border-t pt-4" onSubmit={(event) => {
         event.preventDefault();
         const data = new FormData(event.currentTarget);
@@ -149,10 +159,18 @@ export default function DemoPurchaseDialog({ open, defaultChildId, onClose }: Pr
         {waiting(purchase) && <p>{timedOut ? 'Purchase saved; assessment is still pending.' : status.status === 'processing' ? 'Monty is assessing this purchase…' : 'Waiting for the purchase assessment…'}</p>}
         {status.status === 'failed' && <p>Purchase saved; assessment failed. You can refresh its status later.</p>}
         {status.status === 'completed' && <>
-          <p className="font-semibold">{status.outcome === 'insufficient_data' ? 'More context needed' : `Impulse assessment: ${status.score}/100`}</p>
+          <p className="font-semibold">{status.outcome === 'insufficient_data' ? 'More context needed' : `ML baseline: ${status.score}/100`}</p>
           {status.explanation && <p>{status.explanation}</p>}
           {status.factors.map((factor, index) => <p key={index}><strong>{factor.factor}:</strong> {factor.description}</p>)}
         </>}
+        {status.baseline && status.status !== 'completed' && <p>ML baseline: {status.baseline.score}/100</p>}
+        {status.final_assessment && <><p className="font-semibold">Monty: {status.final_assessment.decision.replace(/_/g, ' ')}</p><p>{status.final_assessment.conversation_explanation}</p></>}
+        {status.status === 'failed' && <button type="button" disabled={busy} onClick={async () => {
+          setBusy(true); setStatusError('');
+          try { applyStatus(await retryDemoAssessment(purchase.transaction_id)); setRefreshCycle(value => value + 1); }
+          catch (err) { setStatusError(err instanceof Error ? err.message : 'Retry failed.'); }
+          finally { setBusy(false); }
+        }} className="rounded-full border px-3 py-1.5">Retry assessment</button>}
         {statusError && <p role="alert">Purchase saved; {statusError}</p>}
         {(timedOut || statusError || status.status === 'failed' || status.status === 'not_connected') &&
           <button type="button" onClick={() => setRefreshCycle((value) => value + 1)} className="rounded-full border border-teal-700 px-3 py-1.5">Refresh assessment</button>}

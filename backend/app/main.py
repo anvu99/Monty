@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 import asyncio
+import logging
+from app.services.purchase_assessment import worker as purchase_worker, validate_model
 from contextlib import suppress
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -15,9 +17,22 @@ from app.services.decision_extraction import worker
 async def lifespan(app):
     task = asyncio.create_task(worker(SessionLocal, provider)) if (
         settings.AI_EXTRACTION_WORKER_ENABLED or settings.AI_SEMANTIC_CONSOLIDATION_ENABLED) else None
+    app.state.detector_ready = False
+    purchase_task = None
+    if settings.PURCHASE_ASSESSMENT_WORKER_ENABLED and settings.DEMO_PURCHASES_ENABLED:
+        try:
+            validate_model()
+            app.state.detector_ready = True
+            purchase_task = asyncio.create_task(purchase_worker(SessionLocal, provider))
+        except Exception as exc:
+            logging.getLogger(__name__).warning("purchase_detector unavailable error=%s", type(exc).__name__)
     try:
         yield
     finally:
+        if purchase_task:
+            purchase_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await purchase_task
         if task:
             task.cancel()
             with suppress(asyncio.CancelledError):
@@ -62,4 +77,4 @@ def health_check():
     Phase 0 verification endpoint.
     Returns 200 OK if the server is running correctly.
     """
-    return {"status": "ok", "environment": settings.ENVIRONMENT}
+    return {"status": "ok", "environment": settings.ENVIRONMENT, "purchase_detector_ready": getattr(app.state, "detector_ready", False)}

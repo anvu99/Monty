@@ -25,7 +25,16 @@ export interface DemoPurchaseInput {
   currency: 'USD';
 }
 
+export interface FinalPurchaseAssessment {
+  decision: 'potentially_impulsive' | 'not_flagged' | 'insufficient_context';
+  explanation: string;
+  conversation_effect: string;
+  conversation_explanation: string;
+}
+
 export interface TransactionAssessment {
+  baseline?: { score: number; risk_level: string } | null;
+  final_assessment?: FinalPurchaseAssessment | null;
   status: 'not_connected' | 'pending' | 'processing' | 'completed' | 'failed';
   assessment_id: string | null;
   outcome: 'assessed' | 'insufficient_data' | null;
@@ -192,6 +201,7 @@ export function fetchChildTransactions(childId: string, offset = 0) {
 }
 
 export interface ApiFamilyPurchase extends ApiTransaction {
+  assessment?: TransactionAssessment | null;
   child_name: string;
 }
 
@@ -455,4 +465,21 @@ export interface ApiLiveFeed {
 export function fetchLiveFeed(childId: string, since?: string) {
   const query = since ? `?since=${encodeURIComponent(since)}` : '';
   return get<ApiLiveFeed>(`/child/${childId}/live-feed${query}`);
+}
+
+
+export function retryDemoAssessment(id: string) {
+  return post<DemoPurchase>(`/demo/purchases/${encodeURIComponent(id)}/retry-assessment`, {});
+}
+export interface PurchaseNotification {
+  id: string; transaction_id: string; child_name: string; product: string; merchant: string;
+  amount: string; currency: string; explanation: string; baseline_score: number;
+  created_at: string; read_at: string | null;
+}
+export function fetchPurchaseNotifications(familyId: string, offset = 0) {
+  return get<{ notifications: PurchaseNotification[]; unread_count: number; has_more: boolean }>(
+    `/family/${encodeURIComponent(familyId)}/notifications?limit=50&offset=${offset}`);
+}
+export function markPurchaseNotificationRead(familyId: string, id: string) {
+  return fetch(`${BASE}/family/${encodeURIComponent(familyId)}/notifications/${encodeURIComponent(id)}/read`, { method: 'PATCH' }).then(readResponse);
 }

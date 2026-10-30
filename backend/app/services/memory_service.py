@@ -11,16 +11,18 @@ def core_state(child):
     return CoreState.model_validate(child.core_memory or {})
 
 
-def memory_context(db, child, retrieval_text="", semantic_limit=5):
+def memory_context(db, child, retrieval_text="", semantic_limit=5, as_of=None):
     state = core_state(child)
-    records = SemanticMemoryRepository(db).retrieve(child.id, retrieval_text, semantic_limit)
+    records = SemanticMemoryRepository(db).retrieve(child.id, retrieval_text, semantic_limit, before=as_of)
     return {
         "core_memory": {"schema_version": state.schema_version, "revision": state.revision,
-            "entries": {key: {"value": item.value, "updated_at": item.updated_at}
-                        for key, item in state.entries.items()}},
+            "entries": {key: {"value": item.value, "updated_at": item.updated_at,
+                                         "conversation_id": item.conversation_id, "evidence": [e.model_dump() for e in item.evidence]}
+                        for key, item in state.entries.items() if as_of is None or datetime.fromisoformat(item.updated_at).astimezone(timezone.utc) <= as_of}},
         "semantic_memories": {item.id: {"id": item.id, "memory_key": item.memory_key,
             "name": item.name, "topic": item.topic, "summary": item.summary, "details": item.details,
             "origin": item.origin, "revision": item.revision,
+            "source_conversation_id": item.source_conversation_id, "evidence": item.evidence,
             "evidence_quotes": [entry["quote"] for entry in item.evidence],
             **({"supporting_conversation_count": len({entry["conversation_id"] for entry in
                     (item.pattern_evidence or {}).get("supporting", [])}),

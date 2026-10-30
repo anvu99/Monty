@@ -18,7 +18,7 @@ class SemanticMemoryRepository:
     def active(self, child_id):
         return self.db.query(SemanticMemory).filter_by(child_id=child_id, status="active")
 
-    def retrieve(self, child_id: str, text: str, limit: int = 5, origin=None):
+    def retrieve(self, child_id: str, text: str, limit: int = 5, origin=None, before=None):
         terms = query_terms(text)
         if not terms:
             return []
@@ -28,6 +28,8 @@ class SemanticMemoryRepository:
                                    (SemanticMemory.summary, 1), (SemanticMemory.details, 1)):
                 score = score + case((func.lower(func.coalesce(column, "")).contains(term, autoescape=True), weight), else_=0)
         query = self.active(child_id).filter(score > 0)
+        if before is not None:
+            query = query.filter(SemanticMemory.created_at <= before)
         ordering = (score.desc(), SemanticMemory.updated_at.desc(), SemanticMemory.id.asc())
         if origin:
             return query.filter_by(origin=origin).order_by(*ordering).limit(limit).all()

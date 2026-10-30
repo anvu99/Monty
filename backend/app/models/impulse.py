@@ -18,6 +18,7 @@ class ImpulseScore(BaseModel):
         nullable=False,
         index=True,
     )
+    transaction_id = Column(String, ForeignKey("transactions.id", ondelete="CASCADE"), nullable=True, unique=True)
     product_name = Column(String(100), nullable=False)
     amount = Column(Numeric(10, 2), nullable=False)
     merchant_name = Column(String(100), nullable=False)
