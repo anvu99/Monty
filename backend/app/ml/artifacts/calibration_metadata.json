@@ -1,0 +1,46 @@
+{
+  "exported_at": "2026-10-25T16:46:31.333296+00:00",
+  "model_version": "v1.0.0",
+  "training_period_base_rate": 0.625,
+  "test_metrics": {
+    "pr_auc": 0.9999999999999998,
+    "roc_auc": 1.0,
+    "brier_score_raw": 0.020436081551849724,
+    "brier_score_calibrated": 0.023603802594918438,
+    "ece_raw": 0.05860917685978353,
+    "ece_calibrated": 0.033060580051753954
+  },
+  "reliability_diagram": [
+    {
+      "mean_predicted_prob": 0.0345,
+      "empirical_fraction_positive": 0.0769
+    },
+    {
+      "mean_predicted_prob": 0.5561,
+      "empirical_fraction_positive": 1.0
+    },
+    {
+      "mean_predicted_prob": 0.9911,
+      "empirical_fraction_positive": 1.0
+    }
+  ],
+  "features": [
+    "amount",
+    "goal_progress",
+    "amt_to_savings",
+    "amt_to_remaining_goal",
+    "days_since_last_deposit",
+    "hour_of_day",
+    "day_of_week",
+    "is_weekend",
+    "merchant_category",
+    "spend_24h",
+    "spend_7d",
+    "purch_last_hour",
+    "hours_since_last_purchase",
+    "n_prior_purchases",
+    "child_rate",
+    "child_cat_rate",
+    "logit_child_rate"
+  ]
+}

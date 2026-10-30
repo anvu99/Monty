@@ -1,0 +1,211 @@
+{
+  "timestamp": "2026-10-25T16:39:23.679890+00:00",
+  "out_of_time_metrics": {
+    "model_a": {
+      "pr_auc": 0.9886363636363635,
+      "roc_auc": 0.96875,
+      "brier_score": 0.09686743072034745,
+      "log_loss": 0.3183146768376427
+    },
+    "model_b": {
+      "pr_auc": 0.9999999999999998,
+      "roc_auc": 1.0,
+      "brier_score": 0.020436081551849724,
+      "log_loss": 0.07771172750680481
+    }
+  },
+  "bootstrap_95_ci": {
+    "pr_auc": {
+      "model_a": {
+        "mean": 0.9894,
+        "ci_95_lower": 0.9567,
+        "ci_95_upper": 1.0
+      },
+      "model_b": {
+        "mean": 1.0,
+        "ci_95_lower": 1.0,
+        "ci_95_upper": 1.0
+      },
+      "delta_b_minus_a": {
+        "mean": 0.0106,
+        "ci_95_lower": -0.0,
+        "ci_95_upper": 0.0433
+      }
+    },
+    "roc_auc": {
+      "model_a": {
+        "mean": 0.9711,
+        "ci_95_lower": 0.8929,
+        "ci_95_upper": 1.0
+      },
+      "model_b": {
+        "mean": 1.0,
+        "ci_95_lower": 1.0,
+        "ci_95_upper": 1.0
+      },
+      "delta_b_minus_a": {
+        "mean": 0.0289,
+        "ci_95_lower": 0.0,
+        "ci_95_upper": 0.1071
+      }
+    },
+    "brier_score": {
+      "model_a": {
+        "mean": 0.0957,
+        "ci_95_lower": 0.0447,
+        "ci_95_upper": 0.165
+      },
+      "model_b": {
+        "mean": 0.0203,
+        "ci_95_lower": 0.0012,
+        "ci_95_upper": 0.0578
+      },
+      "delta_b_minus_a": {
+        "mean": -0.0755,
+        "ci_95_lower": -0.1386,
+        "ci_95_upper": -0.0146
+      }
+    }
+  },
+  "is_statistically_significant": false,
+  "loco_cv": {
+    "model_a_overall": {
+      "pr_auc": 0.8244226028045033,
+      "roc_auc": 0.8198429477499245,
+      "brier_score": 0.15692142780957455,
+      "log_loss": 0.9959962585483574
+    },
+    "model_b_overall": {
+      "pr_auc": 0.9376784935523603,
+      "roc_auc": 0.9210208396254909,
+      "brier_score": 0.11063033281154179,
+      "log_loss": 0.44494378288216935
+    },
+    "per_child": {
+      "kid-4": {
+        "rows": 52,
+        "impulse_rate": 0.019,
+        "model_a_pr_auc": 0.0204,
+        "model_b_pr_auc": 0.25
+      },
+      "kid-2": {
+        "rows": 38,
+        "impulse_rate": 1.0,
+        "model_a_pr_auc": 1.0,
+        "model_b_pr_auc": 1.0
+      },
+      "kid-1": {
+        "rows": 48,
+        "impulse_rate": 0.917,
+        "model_a_pr_auc": 0.9995,
+        "model_b_pr_auc": 0.9795
+      },
+      "kid-3": {
+        "rows": 55,
+        "impulse_rate": 0.6,
+        "model_a_pr_auc": 0.8408,
+        "model_b_pr_auc": 0.8894
+      },
+      "kid-5": {
+        "rows": 47,
+        "impulse_rate": 0.809,
+        "model_a_pr_auc": 0.6567,
+        "model_b_pr_auc": 0.7974
+      }
+    }
+  },
+  "model_b_coefficients": [
+    {
+      "feature": "child_cat_rate",
+      "coefficient": 2.4199
+    },
+    {
+      "feature": "merchant_category_Apparel",
+      "coefficient": -1.9755
+    },
+    {
+      "feature": "hour_of_day",
+      "coefficient": 1.5703
+    },
+    {
+      "feature": "merchant_category_Gaming & In-App",
+      "coefficient": 1.5129
+    },
+    {
+      "feature": "merchant_category_Toys & Hobbies",
+      "coefficient": 1.1489
+    },
+    {
+      "feature": "amount",
+      "coefficient": -1.0489
+    },
+    {
+      "feature": "spend_7d",
+      "coefficient": -0.7062
+    },
+    {
+      "feature": "hours_since_last_purchase",
+      "coefficient": 0.6571
+    },
+    {
+      "feature": "day_of_week",
+      "coefficient": 0.5346
+    },
+    {
+      "feature": "amt_to_savings",
+      "coefficient": 0.4639
+    },
+    {
+      "feature": "is_weekend",
+      "coefficient": -0.3837
+    },
+    {
+      "feature": "goal_progress",
+      "coefficient": 0.3802
+    },
+    {
+      "feature": "amt_to_remaining_goal",
+      "coefficient": -0.2547
+    },
+    {
+      "feature": "merchant_category_Books & Learning",
+      "coefficient": -0.2402
+    },
+    {
+      "feature": "child_rate",
+      "coefficient": -0.1886
+    },
+    {
+      "feature": "merchant_category_Snacks & Treats",
+      "coefficient": -0.1595
+    },
+    {
+      "feature": "n_prior_purchases",
+      "coefficient": 0.1571
+    },
+    {
+      "feature": "spend_24h",
+      "coefficient": 0.1204
+    },
+    {
+      "feature": "merchant_category_Food & Dining",
+      "coefficient": -0.1166
+    },
+    {
+      "feature": "merchant_category_Sports & Outdoors",
+      "coefficient": -0.1028
+    },
+    {
+      "feature": "days_since_last_deposit",
+      "coefficient": -0.0847
+    },
+    {
+      "feature": "logit_child_rate",
+      "coefficient": 0.0277
+    },
+    {
+      "feature": "purch_last_hour",
+      "coefficient": 0.0
+    }
+  ]
+}

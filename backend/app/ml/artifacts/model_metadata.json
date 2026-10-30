@@ -1,0 +1,97 @@
+{
+  "model_name": "Model A (Baseline Static Logistic Regression)",
+  "trained_at": "2026-10-25T16:31:27.789729+00:00",
+  "training_rows": 168,
+  "validation_rows": 36,
+  "test_rows": 36,
+  "best_C": 2.0,
+  "features": [
+    "amount",
+    "goal_progress",
+    "amt_to_savings",
+    "amt_to_remaining_goal",
+    "days_since_last_deposit",
+    "hour_of_day",
+    "day_of_week",
+    "is_weekend",
+    "merchant_category"
+  ],
+  "validation_metrics": {
+    "count": 36,
+    "positive_rate": 0.6944444444444444,
+    "pr_auc": 0.9969,
+    "roc_auc": 0.9927,
+    "brier_score": 0.0492,
+    "log_loss": 0.2003
+  },
+  "test_metrics": {
+    "count": 36,
+    "positive_rate": 0.6666666666666666,
+    "pr_auc": 0.9886,
+    "roc_auc": 0.9688,
+    "brier_score": 0.0969,
+    "log_loss": 0.3183
+  },
+  "feature_importances": [
+    {
+      "feature": "merchant_category_Gaming & In-App",
+      "coefficient": 3.7903
+    },
+    {
+      "feature": "merchant_category_Apparel",
+      "coefficient": -2.5381
+    },
+    {
+      "feature": "amount",
+      "coefficient": -2.0761
+    },
+    {
+      "feature": "hour_of_day",
+      "coefficient": 1.7182
+    },
+    {
+      "feature": "merchant_category_Sports & Outdoors",
+      "coefficient": -1.4952
+    },
+    {
+      "feature": "merchant_category_Toys & Hobbies",
+      "coefficient": 1.2499
+    },
+    {
+      "feature": "merchant_category_Food & Dining",
+      "coefficient": -0.6835
+    },
+    {
+      "feature": "amt_to_savings",
+      "coefficient": 0.662
+    },
+    {
+      "feature": "amt_to_remaining_goal",
+      "coefficient": 0.5412
+    },
+    {
+      "feature": "merchant_category_Books & Learning",
+      "coefficient": -0.3525
+    },
+    {
+      "feature": "goal_progress",
+      "coefficient": -0.3417
+    },
+    {
+      "feature": "days_since_last_deposit",
+      "coefficient": 0.0845
+    },
+    {
+      "feature": "is_weekend",
+      "coefficient": 0.0582
+    },
+    {
+      "feature": "merchant_category_Snacks & Treats",
+      "coefficient": -0.0114
+    },
+    {
+      "feature": "day_of_week",
+      "coefficient": 0.0063
+    }
+  ]
+}
