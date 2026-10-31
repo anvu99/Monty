@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from app.models import PurchaseNotification
+from app.models import PurchaseNotification, PurchaseAssessmentJob
 from app.services.purchase_assessment import utc
 from app.services.purchase_scoring_adapter import get_purchase_scoring_adapter
 
@@ -69,7 +69,11 @@ def notifications(family_id: str, limit: int = Query(50, ge=1, le=100), offset: 
         raise HTTPException(404, "Family not found")
     query = db.query(PurchaseNotification).filter_by(family_id=family_id)
     rows = query.order_by(PurchaseNotification.created_at.desc(), PurchaseNotification.id).offset(offset).limit(limit + 1).all()
+    jobs = db.query(PurchaseAssessmentJob).filter(PurchaseAssessmentJob.id.in_(
+        [row.assessment_id for row in rows[:limit]])).all() if rows else []
+    historical_usage = {job.id: (job.final_assessment or {}).get("historical_assessment_used") is True for job in jobs}
     return {"notifications": [{**r.details, "id": r.id, "transaction_id": r.transaction_id, "created_at": utc(r.created_at).isoformat(),
+        "historical_assessment_used": historical_usage.get(r.assessment_id, False),
         "read_at": utc(r.read_at).isoformat() if r.read_at else None} for r in rows[:limit]],
         "unread_count": query.filter(PurchaseNotification.read_at.is_(None)).count(), "has_more": len(rows) > limit}
 

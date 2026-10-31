@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { X, ShoppingBag } from 'lucide-react';
 import { ApiError, createDemoPurchase, retryDemoAssessment, fetchDemoPurchase, type DemoPurchase, type DemoPurchaseInput } from '@/api/client';
 import { useMontyData } from '@/api/MontyDataProvider';
+import HistoricalBaseline from './HistoricalBaseline';
 
 interface Props { open: boolean; defaultChildId: string; onClose: () => void }
 const RANDOM_PURCHASES = [
@@ -159,11 +160,11 @@ export default function DemoPurchaseDialog({ open, defaultChildId, onClose }: Pr
         {waiting(purchase) && <p>{timedOut ? 'Purchase saved; assessment is still pending.' : status.status === 'processing' ? 'Monty is assessing this purchase…' : 'Waiting for the purchase assessment…'}</p>}
         {status.status === 'failed' && <p>Purchase saved; assessment failed. You can refresh its status later.</p>}
         {status.status === 'completed' && <>
-          <p className="font-semibold">{status.outcome === 'insufficient_data' ? 'More context needed' : `ML baseline: ${status.score}/100`}</p>
+          {status.outcome === 'insufficient_data' && <p className="font-semibold">More context needed</p>}
           {status.explanation && <p>{status.explanation}</p>}
-          {status.factors.map((factor, index) => <p key={index}><strong>{factor.factor}:</strong> {factor.description}</p>)}
+          {status.final_assessment?.historical_assessment_used === true && status.baseline && status.factors.map((factor, index) => <p key={index}><strong>{factor.factor}:</strong> {factor.description}</p>)}
         </>}
-        {status.baseline && status.status !== 'completed' && <p>ML baseline: {status.baseline.score}/100</p>}
+        <HistoricalBaseline historicalAssessmentUsed={status.final_assessment?.historical_assessment_used} score={status.baseline?.score} className="font-semibold" />
         {status.final_assessment && <><p className="font-semibold">Monty: {status.final_assessment.decision.replace(/_/g, ' ')}</p><p>{status.final_assessment.conversation_explanation}</p></>}
         {status.status === 'failed' && <button type="button" disabled={busy} onClick={async () => {
           setBusy(true); setStatusError('');

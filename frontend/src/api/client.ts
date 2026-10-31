@@ -26,6 +26,7 @@ export interface DemoPurchaseInput {
 }
 
 export interface FinalPurchaseAssessment {
+  historical_assessment_used?: boolean;
   decision: 'potentially_impulsive' | 'not_flagged' | 'insufficient_context';
   explanation: string;
   conversation_effect: string;
@@ -473,7 +474,8 @@ export function retryDemoAssessment(id: string) {
 }
 export interface PurchaseNotification {
   id: string; transaction_id: string; child_name: string; product: string; merchant: string;
-  amount: string; currency: string; explanation: string; baseline_score: number;
+  amount: string; currency: string; explanation: string; baseline_score: number | null;
+  historical_assessment_used?: boolean;
   created_at: string; read_at: string | null;
 }
 export function fetchPurchaseNotifications(familyId: string, offset = 0) {

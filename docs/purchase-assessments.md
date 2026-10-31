@@ -10,6 +10,12 @@ Each new demo purchase creates an immutable financial/memory/conversation snapsh
 4. Check `/health`: `purchase_detector_ready` must be true. Invalid artifacts disable the purchase worker and are reported in startup logs. After correcting artifacts/dependencies, restart the API.
 5. Use preset, custom, or random demo purchases. Parent Home displays the final explanation and baseline separately, with five-second foreground polling. No savings balances or real money are changed.
 
+## Optional historical tool
+
+The LangChain decision stage advertises two choices: `submit_assessment` and `assess_historical_factors`. An immediate submission is validated locally and finishes after **one Gemini request**. A historical request executes the read-only tool against the frozen snapshot and then makes a second Gemini request for the final structured assessment. No ordinary-text or malformed response triggers a repair request.
+
+The ML baseline is still calculated and saved for every purchase; it is only exposed to Gemini if history is requested. `historical_assessment_used` records actual execution. Initial submissions cannot cite hidden historical evidence or claim a baseline comparison. Logs record model-request counts and tool usage without transcript contents. These counts exclude upstream conversation-summary requests and later worker retries.
+
 ## Context and retries
 
 The three most recent saved conversations before purchase creation are selected by saved timestamp and ID, regardless of extraction status. Core and keyword-ranked semantic memories include provenance; inferred patterns retain their uncertainty. Browser-only unfinished chats are not included. Future records are excluded from financial history. Inputs and the configured Gemini model ID are frozen for retries.
@@ -24,4 +30,4 @@ The notification API is family-scoped: `GET /api/family/{id}/notifications?limit
 
 Backend regression tests exercise real artifact loading, immutable retries, summaries, exact quote checks, threshold-independent notifications, quota delays, stale leases, family isolation, and SQLite migration round trips and a full fresh-database Alembic upgrade. The initial migration now supplies a SQLite JSON fallback while preserving PostgreSQL JSONB. PostgreSQL DDL is checked without a server; a live PostgreSQL migration/concurrency run remains necessary before production deployment. Gemini responses are mocked in automated tests, so these checks validate orchestration and evidence accounting rather than classification quality on real conversations.
 
-This release does not backfill old purchases, retrain the detector, connect banking providers, or change the child's proposed-purchase API. Completed-purchase processing uses the existing Gemini SDK directly.
+This release does not backfill old purchases, retrain the detector, connect banking providers, or change the child's proposed-purchase API. Completed-purchase decisions use LangChain with the Google GenAI integration; conversation summarization continues through the existing Gemini SDK provider.

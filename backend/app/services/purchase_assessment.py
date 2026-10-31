@@ -12,12 +12,28 @@ from sqlalchemy import and_, or_
 
 from app.core.config import settings
 from app.models import Child, EndedConversation, ImpulseScore, PurchaseAssessmentJob, PurchaseNotification
-from app.schemas.purchase_assessment import ConversationSummary, FinalAssessment
+from app.schemas.purchase_assessment import ConversationSummary, FinalAssessment, assessment_provider_schema
 from app.services.ai_context_service import build_context, evidence_refs
 from app.services.coaching_service import risk_level
+from app.services.purchase_agent import assess_purchase, routing_tool_schemas
 
 logger = logging.getLogger(__name__)
 MODEL_VERSION = "v1.0.0"
+
+# Only application-authored messages are safe to persist or log as diagnostics.
+SAFE_ASSESSMENT_ERRORS = frozenset({
+    "Invalid assessment tool request", "Exactly one assessment tool choice is required",
+    "Unexpected assessment tool request", "Assessment compared against an unavailable baseline",
+    "Assessment incorrectly reported historical evidence absent", "Assessment referenced unavailable evidence",
+    "Invalid purchase assessment response", "Purchase assessment timed out",
+    "Purchase assessment provider quota reached", "Purchase assessment provider configuration error",
+    "Purchase assessment provider unavailable", "Purchase assessment exceeds the configured input budget",
+    "Purchase conversation summaries exceed the configured input budget",
+    "Purchase detector artifacts are unavailable", "Purchase detector returned an invalid score",
+    "Assessment quote does not match a child message", "Conversation evidence requires exact child quotes",
+    "Conversation effect requires supporting evidence",
+})
+
 
 
 def utc(value):
@@ -122,7 +138,14 @@ def allowed_refs(snapshot):
     return refs
 
 
-def validate_final(result, snapshot):
+def validate_final(result, snapshot, supplied_refs=None):
+    permitted = (
+        allowed_refs(snapshot)
+        if supplied_refs is None
+        else supplied_refs
+    )
+    if not set(result.evidence_refs).issubset(permitted):
+        raise HTTPException(502, "Assessment referenced unavailable evidence")
     if not set(result.evidence_refs).issubset(allowed_refs(snapshot)):
         raise HTTPException(502, "Assessment referenced unavailable evidence")
     validate_quotes(result.quotes, snapshot["conversations"])
@@ -131,7 +154,7 @@ def validate_final(result, snapshot):
     quoted_ids = {q.conversation_id for q in result.quotes}
     if any(ref.removeprefix("conversations.") not in quoted_ids for ref in result.evidence_refs if ref.startswith("conversations.")):
         raise HTTPException(502, "Conversation evidence requires exact child quotes")
-    if result.conversation_effect != "no_relevant_context" and not (transcript_claim or memory_claim):
+    if result.conversation_effect not in ("no_relevant_context", "baseline_not_requested") and not (transcript_claim or memory_claim):
         raise HTTPException(502, "Conversation effect requires supporting evidence")
 
 
@@ -187,6 +210,8 @@ async def run_one(factory, provider):
         attempts[stage] = attempts.get(stage, 0) + 1
         return save(stage=stage, attempts=dict(attempts))
 
+    failure_reason = "Assessment could not finish; check configuration and provider availability"
+    failure_status = 500
     stage = "baseline" if baseline is None else "context"
     try:
         if baseline is None:
@@ -199,7 +224,7 @@ async def run_one(factory, provider):
         # Match the provider's byte-based estimate and reserve framing overhead.
         from app.core.ai import PERSONALITY, TASKS
         overhead = estimate({"system": PERSONALITY + "\n" + TASKS["completed_purchase"],
-            "schema": FinalAssessment.model_json_schema(), "allowed_evidence_refs": sorted(allowed_refs(snapshot))}) + 300
+            "schema": assessment_provider_schema(), "routing_tools": routing_tool_schemas(), "allowed_evidence_refs": sorted(allowed_refs(snapshot))}) + 300
         budget = settings.AI_MAX_INPUT_TOKENS - overhead
         if summaries or estimate(context) > budget:
             for conversation in snapshot["conversations"]:
@@ -217,8 +242,11 @@ async def run_one(factory, provider):
                 raise HTTPException(422, "Purchase conversation summaries exceed the configured input budget")
         stage = "gemini"
         now = enter(stage)
-        result = await provider.generate("completed_purchase", context, allowed_refs(snapshot), {"_model": snapshot["gemini_model"]}, FinalAssessment)
-        validate_final(result, snapshot)
+        result, supplied_refs = await assess_purchase(
+            context=context,
+            model_name=snapshot["gemini_model"],
+        )
+        validate_final(result, snapshot, supplied_refs)
         with factory() as db:
             job = db.query(PurchaseAssessmentJob).filter_by(id=job_id, status="processing").with_for_update().first()
             if not job or utc(job.processing_started_at) != now:
@@ -240,6 +268,9 @@ async def run_one(factory, provider):
     except LostLease:
         pass
     except Exception as exc:
+        failure_status = exc.status_code if isinstance(exc, HTTPException) else 500
+        if isinstance(exc, HTTPException) and isinstance(exc.detail, str) and exc.detail in SAFE_ASSESSMENT_ERRORS:
+            failure_reason = exc.detail
         with factory() as db:
             job = db.query(PurchaseAssessmentJob).filter_by(id=job_id, status="processing").with_for_update().first()
             if job and utc(job.processing_started_at) == now:
@@ -248,9 +279,9 @@ async def run_one(factory, provider):
                 transient = code in (429, 500, 503, 504) and not (stage == "baseline" or not settings.GEMINI_API_KEY.strip())
                 job.status = "pending" if transient and count < 3 else "failed"
                 job.next_attempt_at = datetime.now(timezone.utc) + timedelta(seconds=(60 if code == 429 else 15) * count)
-                job.error = str(exc.detail) if isinstance(exc, HTTPException) and code == 422 else "Purchase saved; assessment could not finish. Retry assessment after checking model configuration or provider availability."
+                job.error = "Purchase saved; " + failure_reason
                 db.commit()
-        logger.warning("purchase_assessment failed stage=%s error=%s", stage, type(exc).__name__)
+        logger.warning("purchase_assessment failed stage=%s status=%s error=%s reason=%s", stage, failure_status, type(exc).__name__, failure_reason)
     return True
 
 

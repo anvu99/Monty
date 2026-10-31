@@ -8,7 +8,7 @@ vi.mock('@/api/MontyDataProvider', () => ({ useMontyData: () => ({ purchaseDataR
 
 const row = { id: 'notification', transaction_id: 'purchase', child_name: 'Emma', product: 'Game',
   merchant: 'Game Shop', amount: '10.00', currency: 'USD', explanation: 'This purchase may warrant a check-in.',
-  baseline_score: 20, created_at: '2026-10-30T12:00:00Z', read_at: null };
+  baseline_score: 20, historical_assessment_used: true, created_at: '2026-10-30T12:00:00Z', read_at: null };
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -38,4 +38,20 @@ it('polls every five seconds and stops after unmount', async () => {
   view.unmount();
   await act(async () => { await vi.advanceTimersByTimeAsync(10000); });
   expect(mocks.fetch).toHaveBeenCalledTimes(2);
+});
+
+
+it.each([false, undefined])('hides the score when tool use is unconfirmed (%s)', async (used) => {
+  mocks.fetch.mockResolvedValue({ notifications: [{ ...row, historical_assessment_used: used }], unread_count: 1, has_more: false });
+  render(<PurchaseNotifications familyId="family" />);
+  await screen.findByText('Emma: Game');
+  expect(screen.queryByText(/ML baseline:/)).toBeNull();
+  expect(screen.getByText(row.explanation)).toBeTruthy();
+});
+
+it('hides a missing score even when the historical tool was used', async () => {
+  mocks.fetch.mockResolvedValue({ notifications: [{ ...row, baseline_score: null }], unread_count: 1, has_more: false });
+  render(<PurchaseNotifications familyId="family" />);
+  await screen.findByText('Emma: Game');
+  expect(screen.queryByText(/ML baseline:/)).toBeNull();
 });

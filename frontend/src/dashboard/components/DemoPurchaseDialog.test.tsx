@@ -70,6 +70,10 @@ describe('demo purchases', () => {
     mocks.create.mockResolvedValue(saved('pending'));
     mocks.fetch.mockResolvedValue({ ...saved('completed'), assessment: {
       ...saved('completed').assessment, outcome: 'assessed', score: 65, explanation: 'A contextual assessment',
+      baseline: { score: 65, risk_level: 'MEDIUM' },
+      final_assessment: { decision: 'not_flagged', explanation: 'A contextual assessment',
+        conversation_effect: 'no_relevant_context', conversation_explanation: 'No relevant conversation evidence.',
+        historical_assessment_used: true },
       factors: [{ factor: 'price', contribution: .4, description: 'Recorded price', evidence_refs: ['transaction'] }],
     } });
     render(<DemoPurchaseDialog open defaultChildId="one" onClose={vi.fn()} />);

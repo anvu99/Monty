@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { fetchPurchaseNotifications, markPurchaseNotificationRead, type PurchaseNotification } from '@/api/client';
 import { useMontyData } from '@/api/MontyDataProvider';
+import HistoricalBaseline from './HistoricalBaseline';
 
 export default function PurchaseNotifications({ familyId }: { familyId: string }) {
   const { purchaseDataRevision } = useMontyData();
@@ -44,7 +45,8 @@ export default function PurchaseNotifications({ familyId }: { familyId: string }
       <p className="font-semibold">{row.child_name}: {row.product}</p>
       <p className="text-sm">{row.merchant} · {Number(row.amount).toFixed(2)} {row.currency}</p>
       <p className="mt-2 text-sm">{row.explanation}</p>
-      <p className="mt-1 text-xs text-slate-500">ML baseline: {row.baseline_score}/100 · {new Date(row.created_at).toLocaleString()}</p>
+      <HistoricalBaseline historicalAssessmentUsed={row.historical_assessment_used} score={row.baseline_score} className="mt-1 text-xs text-slate-500" />
+      <p className="mt-1 text-xs text-slate-500">{new Date(row.created_at).toLocaleString()}</p>
       {!row.read_at && <button className="mt-2 text-sm underline" onClick={async () => {
         try { await markPurchaseNotificationRead(familyId, row.id); refresh.current?.(); }
         catch (err) { setError(err instanceof Error ? err.message : 'Unable to mark as read.'); }
